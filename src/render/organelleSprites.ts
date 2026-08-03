@@ -68,8 +68,22 @@ export class Nucleus extends Organelle {
     this.size = size;
     const g = this.g;
     g.clear();
+    // perinuclear halo, then the double nuclear envelope of the ref art
+    g.ellipse(0, 0, size * 1.12, size * 0.96).fill({ color: PALETTE.nucleusRim, alpha: 0.16 });
     g.ellipse(0, 0, size, size * 0.84).fill({ color: PALETTE.nucleus, alpha: 0.96 });
+    g.ellipse(0, 0, size * 0.93, size * 0.78).stroke({
+      width: size * 0.02,
+      color: PALETTE.chromatin,
+      alpha: 0.35,
+    });
     g.ellipse(0, 0, size, size * 0.84).stroke({ width: size * 0.06, color: PALETTE.nucleusRim, alpha: 0.9 });
+    // mottled nucleoplasm — dense chromatin granules, not a flat fill
+    for (let i = 0; i < 40; i++) {
+      const a = hash01(`${this.id}-np-a${i}`) * TAU;
+      const rr = Math.sqrt(hash01(`${this.id}-np-r${i}`)) * 0.86;
+      g.circle(Math.cos(a) * size * rr, Math.sin(a) * size * 0.84 * rr, size * (0.012 + hash01(`${this.id}-np-s${i}`) * 0.022))
+        .fill({ color: PALETTE.chromatin, alpha: 0.1 + hash01(`${this.id}-np-al${i}`) * 0.2 });
+    }
     // nuclear pores
     for (let i = 0; i < 14; i++) {
       const a = (i / 14) * TAU;
@@ -86,7 +100,15 @@ export class Nucleus extends Organelle {
       g.bezierCurveTo(ox - size * 0.05, oy - size * 0.2, ox + size * 0.05, oy + size * 0.2, ox + size * 0.18, oy);
       g.stroke({ width: size * 0.045, color: PALETTE.chromatin, alpha: 0.8, cap: 'round' });
     }
+    // nucleolus: dense body with a rim and a specular highlight
+    g.circle(size * 0.28, size * 0.12, size * 0.23).fill({ color: PALETTE.nucleolus, alpha: 0.5 });
     g.circle(size * 0.28, size * 0.12, size * 0.2).fill({ color: PALETTE.nucleolus, alpha: 0.95 });
+    g.circle(size * 0.28, size * 0.12, size * 0.2).stroke({
+      width: size * 0.018,
+      color: PALETTE.chromatin,
+      alpha: 0.45,
+    });
+    g.circle(size * 0.21, size * 0.04, size * 0.06).fill({ color: PALETTE.chromatin, alpha: 0.3 });
   }
 
   protected tick(m: Motion): void {
@@ -113,15 +135,29 @@ export class Mitochondrion extends Organelle {
     if (!this.glowG.parent) this.addChildAt(this.glowG, 0);
     const g = this.g;
     g.clear();
+    // outer membrane, then the darker matrix the cristae fold through
     g.ellipse(0, 0, size, size * 0.55).fill({ color: PALETTE.mito, alpha: 0.95 });
+    g.ellipse(0, 0, size * 0.88, size * 0.42).fill({ color: PALETTE.mitoRim, alpha: 0.5 });
     g.ellipse(0, 0, size, size * 0.55).stroke({ width: size * 0.07, color: PALETTE.mitoRim, alpha: 0.95 });
-    // cristae folds
+    // cristae: a continuous serpentine fold plus the transverse ridges,
+    // the way the reference art draws the inner membrane
+    g.moveTo(-size * 0.78, 0);
+    for (let i = 0; i <= 8; i++) {
+      const x = -size * 0.78 + (i / 8) * size * 1.56;
+      const dir = i % 2 === 0 ? -1 : 1;
+      g.quadraticCurveTo(x + size * 0.1, dir * size * 0.3, x + size * 0.195, 0);
+    }
+    g.stroke({ width: size * 0.05, color: PALETTE.mitoCristae, alpha: 0.6, cap: 'round' });
     for (let i = -2; i <= 2; i++) {
       const x = i * size * 0.32;
       g.moveTo(x, -size * 0.36);
       g.quadraticCurveTo(x + size * 0.16, 0, x, size * 0.36);
       g.stroke({ width: size * 0.055, color: PALETTE.mitoCristae, alpha: 0.85, cap: 'round' });
     }
+    // specular sheen along the upper membrane
+    g.moveTo(-size * 0.62, -size * 0.34);
+    g.quadraticCurveTo(0, -size * 0.56, size * 0.62, -size * 0.34);
+    g.stroke({ width: size * 0.05, color: 0xffd9ae, alpha: 0.28, cap: 'round' });
     this.rotation = (hash01(this.id) - 0.5) * 1.6;
   }
 
@@ -195,6 +231,26 @@ export class ErRefinery extends Organelle {
     const g = this.g;
     const N = this.nucleusSize;
     g.clear();
+
+    // translucent cisternal sheet spanning the ribbon stack — in the ref art
+    // the ER reads as a folded membrane body, not bare lines
+    const inner = N * this.radii[0];
+    const outer = N * this.radii[2];
+    const sheetSegs = 22;
+    for (let s = 0; s <= sheetSegs; s++) {
+      const a = this.start + (s / sheetSegs) * this.span;
+      const r = outer + Math.sin(a * 7 + t * 1.4 + 2) * N * 0.035;
+      if (s === 0) g.moveTo(Math.cos(a) * r, Math.sin(a) * r * 0.92);
+      else g.lineTo(Math.cos(a) * r, Math.sin(a) * r * 0.92);
+    }
+    for (let s = sheetSegs; s >= 0; s--) {
+      const a = this.start + (s / sheetSegs) * this.span;
+      const r = inner + Math.sin(a * 7 + t * 1.4) * N * 0.035;
+      g.lineTo(Math.cos(a) * r, Math.sin(a) * r * 0.92);
+    }
+    g.closePath();
+    g.fill({ color: PALETTE.er, alpha: 0.16 });
+
     this.radii.forEach((rr, i) => {
       const r = N * rr;
       const segs = 26;

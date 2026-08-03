@@ -37,6 +37,12 @@ export const PALETTE = {
   membraneOuter: 0x6fae9c,
   membraneInner: 0xa8d8c6,
   membraneStressed: 0xc65a4a,
+  /** granular lipid-bilayer speckle sitting in the membrane band */
+  membraneGrain: 0xcbeadd,
+  /** cytoskeleton strands webbing the cytoplasm */
+  filament: 0x7fd6d0,
+  /** free ribosomes dusted through the cytoplasm */
+  ribosome: 0x9fc4b8,
   nucleus: 0x16323e,
   nucleusRim: 0x2c5568,
   nucleolus: 0x0d2029,

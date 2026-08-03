@@ -8,6 +8,7 @@
 import { Application, ColorMatrixFilter, Container, FederatedPointerEvent, Graphics } from 'pixi.js';
 import { organelleFor, OrganelleKind, OrganellePick } from '../mapping/organelles';
 import type { CellEvent, CellSnapshot } from '../data/types';
+import { Cytoskeleton } from './cytoskeleton';
 import { Membrane } from './membrane';
 import { ParticleSystem } from './particles';
 import {
@@ -40,6 +41,7 @@ export class CellApp {
   private cell = new Container();
   private dustG = new Graphics();
   private membrane = new Membrane();
+  private cytoskeleton = new Cytoskeleton();
   private organelleLayer = new Container();
   private phageLayer = new Container();
   private particles = new ParticleSystem();
@@ -89,7 +91,14 @@ export class CellApp {
     });
     parent.appendChild(this.app.canvas);
 
-    this.cell.addChild(this.membrane, this.organelleLayer, this.particles.g, this.phageLayer, this.fxG);
+    this.cell.addChild(
+      this.membrane,
+      this.cytoskeleton,
+      this.organelleLayer,
+      this.particles.g,
+      this.phageLayer,
+      this.fxG,
+    );
     this.cell.filters = [this.filter];
     this.app.stage.addChild(this.dustG, this.cell);
 
@@ -157,6 +166,7 @@ export class CellApp {
     const R = this.cellRadius();
     this.cell.position.set(this.app.screen.width / 2, this.app.screen.height / 2);
     this.membrane.setRadius(R);
+    this.cytoskeleton.rebuild(R);
     for (const org of this.organelles.values()) this.place(org, R);
   }
 
@@ -431,6 +441,7 @@ export class CellApp {
     this.updateFx(dt);
 
     this.membrane.update(m);
+    this.cytoskeleton.update(m);
     for (const org of this.organelles.values()) org.animate(m, dt);
     this.updatePhages(m, dt);
     this.emitContinuousParticles(dt);
