@@ -50,6 +50,18 @@ export class DataManager {
     this.timers = [];
   }
 
+  /**
+   * Route a struct action to the desktop app's signing surface. Refused (with
+   * the honest reason) while running on the mock fixture — there is nothing
+   * real to sign against.
+   */
+  async submitAction(action: string, args: Record<string, unknown>): Promise<string> {
+    if (this.active !== 'desktop') {
+      throw new Error('desktop app (:8420) unreachable — actions need its signing surface; showing mock data only');
+    }
+    return this.desktop.submitAction(action, args);
+  }
+
   /** Menu SCAN: immediate snapshot + event re-read, outside the poll cadence. */
   async refreshNow(): Promise<void> {
     await this.refreshSnapshot();

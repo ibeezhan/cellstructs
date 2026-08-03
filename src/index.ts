@@ -1,5 +1,6 @@
 /** cellstructs bootstrap: data layer → living cell renderer + overlay UI. */
 
+import { ActionPipeline } from './actions/dispatch';
 import { loadConfig } from './config/endpoints';
 import { DataManager } from './data/dataManager';
 import { CellApp } from './render/cellApp';
@@ -15,8 +16,18 @@ async function main(): Promise<void> {
 
   const hud = new Hud();
   const tooltip = new Tooltip();
-  const detail = new DetailPanel();
   let manager: DataManager | null = null;
+
+  // Action pipeline: panel button → structs_action on :8420 (desktop signs)
+  // → tx_settled receipt from the event feed → organelle animation response.
+  const pipeline = new ActionPipeline({
+    submitAction: (action, args) => {
+      if (!manager) return Promise.reject(new Error('data layer not started yet'));
+      return manager.submitAction(action, args);
+    },
+  });
+  pipeline.onEffect = (action, structId) => cellApp.actionEffect(action, structId);
+  const detail = new DetailPanel(pipeline);
 
   cellApp.onHover = (pick, x, y) => (pick ? tooltip.show(pick, x, y) : tooltip.hide());
   cellApp.onSelect = (pick) => detail.show(pick);
@@ -29,7 +40,10 @@ async function main(): Promise<void> {
         hud.update(snap);
         detail.refresh(snap);
       },
-      onEvents: (events) => cellApp.pushEvents(events),
+      onEvents: (events) => {
+        cellApp.pushEvents(events);
+        pipeline.handleEvents(events);
+      },
     });
     manager.start();
   };

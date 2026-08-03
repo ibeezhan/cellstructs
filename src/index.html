@@ -81,7 +81,31 @@
     }
     #detail-actions button:hover { border-color: var(--accent); color: var(--accent); }
     #detail-actions .none { color: var(--ink-dim); font-size: 11px; }
-    #detail-note { color: var(--mock); font-size: 10px; margin-top: 8px; display: none; }
+    #detail-actions button:disabled { opacity: 0.45; cursor: wait; }
+    #detail-note { font-size: 10px; margin-top: 8px; display: none; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--edge); }
+    #detail-note.pending { border-color: var(--mock); }
+    #detail-note.ok { border-color: var(--live); }
+    #detail-note.err { border-color: #c65a4a; }
+    #detail-note .st-badge { font-weight: 700; letter-spacing: 0.06em; margin-bottom: 3px; }
+    #detail-note.pending .st-badge { color: var(--mock); }
+    #detail-note.ok .st-badge { color: var(--live); }
+    #detail-note.err .st-badge { color: #e07a6a; }
+    #detail-note .st-text { color: var(--ink); line-height: 1.5; word-break: break-word; }
+    #detail-note .st-tx { color: var(--ink-dim); margin-top: 3px; font-size: 9px; word-break: break-all; }
+    .action-form { width: 100%; }
+    .action-form label { display: block; font-size: 10px; color: var(--ink-dim); margin: 6px 0 2px; }
+    .action-form input, .action-form select {
+      width: 100%; box-sizing: border-box; padding: 5px 8px; border-radius: 6px;
+      border: 1px solid var(--edge); background: #0a141a; color: var(--ink);
+      font: inherit; font-size: 11px;
+    }
+    .action-form input:focus, .action-form select:focus { outline: none; border-color: var(--accent); }
+    .action-form .form-buttons { display: flex; gap: 6px; margin-top: 8px; }
+    .action-form .form-buttons button {
+      flex: 1; padding: 6px 0; border-radius: 6px; cursor: pointer; font: inherit; font-size: 11px;
+      border: 1px solid var(--edge); background: #0e1c22; color: var(--ink);
+    }
+    .action-form .form-buttons button.primary { border-color: var(--accent); color: var(--accent); }
 
     #settings {
       top: 60px; right: 16px; width: 320px; padding: 16px;

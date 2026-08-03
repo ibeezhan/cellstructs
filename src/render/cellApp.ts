@@ -258,6 +258,41 @@ export class CellApp {
     }
   }
 
+  /**
+   * Animation response for a player action accepted by the signing surface
+   * (and again when its tx settles): the acted-on organelle reacts in its
+   * own motion language.
+   */
+  actionEffect(action: string, structId: string): void {
+    const org = this.organelles.get(structId);
+    switch (action) {
+      case 'mine':
+        this.motion.minePulse = 1;
+        this.burstOre();
+        break;
+      case 'refine':
+        this.motion.refinePulse = 1;
+        break;
+      case 'build':
+        this.motion.buildPulse = 1;
+        break;
+      case 'defend':
+        this.motion.shieldPulse = 1;
+        if (org) org.flash = 1;
+        break;
+      case 'attack':
+        if (org) {
+          org.flash = 1;
+          this.particles.spawnAlphaSparks({ x: org.x, y: org.y }, 12);
+        }
+        break;
+      case 'activate':
+      case 'deactivate':
+        if (org) org.flash = 1;
+        break;
+    }
+  }
+
   // -- construction / placement --------------------------------------------
 
   private createOrganelle(id: string, kind: OrganelleKind): Organelle {

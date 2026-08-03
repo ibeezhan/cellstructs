@@ -44,6 +44,15 @@ export class DesktopSource {
     this.pinnedPlayerId = cfg.playerId;
   }
 
+  /**
+   * Submit a signed player action through the desktop app's `structs_action`
+   * tool (preflight → CosmJS signing bridge → broadcast). Returns the raw
+   * reply text; throws McpError with the server's real error on failure.
+   */
+  async submitAction(action: string, args: Record<string, unknown>): Promise<string> {
+    return this.client.callTool('structs_action', { action, args });
+  }
+
   private async rawQuery<T>(type: string, id: string): Promise<T> {
     const text = await this.client.callTool('structs_intel', {
       query: 'query',
