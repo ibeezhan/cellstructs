@@ -9,7 +9,7 @@
 import { ActionExtras, ActionPipeline, ActionState, StructAction } from '../actions/dispatch';
 import { METAPHOR, OrganelleKind, OrganellePick, statusLabel } from '../mapping/organelles';
 import type { CellSnapshot, StructState } from '../data/types';
-import { esc } from './dom';
+import { esc, hpRing } from './dom';
 
 interface ActionSpec {
   action: StructAction;
@@ -96,12 +96,13 @@ export class DetailPanel {
     document.getElementById('detail-type')!.textContent = `${s ? s.typeName : meta.structs} · ${pick.kind}`;
 
     const flag = (b: boolean): string => (b ? 'yes' : 'no');
+    // row values are pre-escaped HTML; only the hp row carries markup (SVG ring)
     const rows: Array<[string, string]> = s
       ? [
-          ['struct id', s.id],
-          ['hp', `${s.health} / ${s.healthMax}`],
-          ['ambit · slot', `${s.ambit} · ${s.slot}`],
-          ['status', statusLabel(pick)],
+          ['struct id', esc(s.id)],
+          ['hp', `${hpRing(s.health, s.healthMax)} ${esc(`${s.health} / ${s.healthMax}`)}`],
+          ['ambit · slot', esc(`${s.ambit} · ${s.slot}`)],
+          ['status', esc(statusLabel(pick))],
           ['online', flag(s.online)],
           ['built', flag(s.built)],
           ['destroyed', flag(s.destroyed)],
@@ -110,14 +111,14 @@ export class DetailPanel {
           ['building', flag(s.building)],
         ]
       : [
-          ['id', pick.id],
-          ['status', statusLabel(pick)],
+          ['id', esc(pick.id)],
+          ['status', esc(statusLabel(pick))],
           ...(pick.energy !== undefined
             ? [['energy', `${(pick.energy * 100).toFixed(0)}%`] as [string, string]]
             : []),
         ];
     document.getElementById('detail-body')!.innerHTML = rows
-      .map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`)
+      .map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${v}</span></div>`)
       .join('');
 
     this.renderActions(s);

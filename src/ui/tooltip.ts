@@ -4,7 +4,7 @@
  */
 
 import { METAPHOR, OrganellePick, statusLabel } from '../mapping/organelles';
-import { esc } from './dom';
+import { esc, hpRing } from './dom';
 
 export class Tooltip {
   private el = document.getElementById('tooltip')!;
@@ -15,14 +15,16 @@ export class Tooltip {
     // cell-biology identity is primary; the Structs name is the subtitle
     const structsName = s ? s.typeName : meta.structs;
     const stats = s
-      ? `#${s.id} · HP ${s.health}/${s.healthMax} · ${s.ambit}:${s.slot}`
-      : pick.energy !== undefined
-        ? `charge reserve · energy ${(pick.energy * 100).toFixed(0)}%`
-        : `#${pick.id}`;
+      ? `${hpRing(s.health, s.healthMax)} ${esc(`#${s.id} · HP ${s.health}/${s.healthMax} · ${s.ambit}:${s.slot}`)}`
+      : esc(
+          pick.energy !== undefined
+            ? `charge reserve · energy ${(pick.energy * 100).toFixed(0)}%`
+            : `#${pick.id}`,
+        );
     this.el.innerHTML =
       `<div class="t-name">${esc(meta.biology)}</div>` +
       `<div class="t-type">${esc(structsName)}</div>` +
-      `<div class="t-stats">${esc(stats)}</div>` +
+      `<div class="t-stats">${stats}</div>` +
       `<div class="t-status">${esc(statusLabel(pick))}</div>`;
     this.el.style.display = 'block';
     // follow the cursor, clamped so the tip never leaves the viewport
