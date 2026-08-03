@@ -5,7 +5,7 @@
  */
 
 import type { AppConfig } from '../config/endpoints';
-import { DesktopSource } from './desktopSource';
+import { DesktopSource, ScanFilters, ScanResult } from './desktopSource';
 import { MockSource } from './mockSource';
 import { RpcProbe } from './cosmosSource';
 import type { CellEvent, CellSnapshot } from './types';
@@ -110,6 +110,14 @@ export class DataManager {
   async portalHome(): Promise<void> {
     this.viewTarget = null;
     await this.refreshSnapshot();
+  }
+
+  /** UNIVERSE SCAN (read-only) — needs the live registries. */
+  async scanUniverse(query: string, filters: ScanFilters): Promise<ScanResult> {
+    if (this.active !== 'desktop') {
+      throw new Error('desktop app (:8420) unreachable — the scan needs live chain data');
+    }
+    return this.desktop.scanUniverse(query, filters);
   }
 
   private async refreshSnapshot(): Promise<void> {

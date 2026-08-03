@@ -26,6 +26,56 @@ export interface Identity {
   blockHeight: number;
 }
 
+/** UNIVERSE SCAN filters, modeled on the structs-webapp search facets. */
+export interface ScanFilters {
+  kind: 'all' | 'planet' | 'player' | 'guild';
+  minOre: number;
+  minShield: number;
+  minDefenses: number;
+  /** owner acted within this many blocks; 0 = any */
+  maxBlocksSinceAction: number;
+}
+
+export interface ScanRow {
+  kind: 'planet' | 'player' | 'guild';
+  entityId: string;
+  name: string;
+  /** portal target */
+  planetId: string;
+  ownerName: string;
+  guildId: string;
+  /** owner's grid ore */
+  ore: number;
+  shield: number;
+  /** planet defense installations (cannon / interceptor / jamming networks…) */
+  defenses: number;
+  /** occupied planet slots */
+  structs: number;
+  raidActive: boolean;
+  blocksSinceAction: number | null;
+}
+
+export interface ScanResult {
+  rows: ScanRow[];
+  totalMatches: number;
+  enriched: number;
+  note: string;
+}
+
+interface ScanCandidate {
+  kind: ScanRow['kind'];
+  id: string;
+  name: string;
+  planetId?: string;
+  ownerId?: string;
+}
+
+interface RawGuild {
+  id: string;
+  name: string;
+  owner: string;
+}
+
 export interface EventsPage {
   events: CellEvent[];
   cursor: number;
@@ -83,7 +133,7 @@ export class DesktopSource {
 
   /** Paged entity list (LCD-style pagination via next_key). */
   private async rawList<T>(
-    type: 'player' | 'planet',
+    type: 'player' | 'planet' | 'guild',
     limit: number,
     paginationKey?: string,
   ): Promise<{ items: T[]; next: string | null }> {
@@ -92,10 +142,23 @@ export class DesktopSource {
       args: { type, limit, ...(paginationKey ? { pagination_key: paginationKey } : {}) },
     });
     const j = JSON.parse(text) as Record<string, unknown>;
-    const key = type === 'player' ? 'Player' : 'Planet';
+    const key = type.charAt(0).toUpperCase() + type.slice(1);
     const items = (j[key] ?? []) as T[];
     const next = (j.pagination as { next_key?: string } | undefined)?.next_key ?? null;
     return { items, next };
+  }
+
+  /** Collect every entity of a type, bounded by MAX_PAGES × page size. */
+  private async collect<T>(type: 'player' | 'planet' | 'guild', maxPages = 12): Promise<T[]> {
+    const all: T[] = [];
+    let key: string | undefined;
+    for (let page = 0; page < maxPages; page++) {
+      const { items, next } = await this.rawList<T>(type, 400, key);
+      all.push(...items);
+      if (!next) break;
+      key = next;
+    }
+    return all;
   }
 
   /** whoami is plain text; parse the labelled fields. */
@@ -270,6 +333,122 @@ export class DesktopSource {
     }
     if (substring) return substring;
     throw new McpError(`no planet or player named '${query}' found`);
+  }
+
+  /**
+   * UNIVERSE SCAN (read-only): sweep the live planet/player/guild registries
+   * for a name/id match, then enrich the top candidates with planet + owner
+   * reads so the facet filters (ore/shield/defenders/activity) can apply.
+   * Numeric filters only see enriched rows — the note reports that honestly.
+   */
+  async scanUniverse(query: string, filters: ScanFilters, maxRows = 12): Promise<ScanResult> {
+    const identity = await this.fetchIdentity();
+    const q = query.trim().toLowerCase();
+    const wantKind = (k: ScanRow['kind']): boolean => filters.kind === 'all' || filters.kind === k;
+    const matches = (id: string, name: string): boolean =>
+      !q || id.toLowerCase().startsWith(q) || name.toLowerCase().includes(q);
+
+    const candidates: ScanCandidate[] = [];
+    if (wantKind('planet')) {
+      for (const p of await this.collect<RawPlanet>('planet')) {
+        if (matches(p.id, p.name)) {
+          candidates.push({
+            kind: 'planet',
+            id: p.id,
+            name: p.name || p.id,
+            planetId: p.id,
+            ownerId: p.owner_type === 'Player' ? p.owner : undefined,
+          });
+        }
+      }
+    }
+    if (wantKind('player')) {
+      for (const p of await this.collect<RawPlayer>('player')) {
+        if (p.planetId && matches(p.id, p.name)) {
+          candidates.push({ kind: 'player', id: p.id, name: p.name || p.id, planetId: p.planetId, ownerId: p.id });
+        }
+      }
+    }
+    if (wantKind('guild')) {
+      for (const g of await this.collect<RawGuild>('guild')) {
+        if (matches(g.id, g.name)) {
+          candidates.push({ kind: 'guild', id: g.id, name: g.name || g.id, ownerId: g.owner });
+        }
+      }
+    }
+
+    // Newest entities first — high indices are the live, active corner of the
+    // universe; registry order would spend the enrich budget on dead planets.
+    const indexOf = (id: string): number => num(id.split('-')[1]);
+    candidates.sort((a, b) => indexOf(b.id) - indexOf(a.id));
+
+    const hasNumericFilter =
+      filters.minOre > 0 || filters.minShield > 0 || filters.minDefenses > 0 || filters.maxBlocksSinceAction > 0;
+    const rows: ScanRow[] = [];
+    let enriched = 0;
+    const ENRICH_BUDGET = hasNumericFilter ? 48 : maxRows;
+    for (let i = 0; i < candidates.length && rows.length < maxRows && enriched < ENRICH_BUDGET; i += 8) {
+      const batch = candidates.slice(i, Math.min(i + 8, candidates.length));
+      const settled = await Promise.all(batch.map((c) => this.enrichCandidate(c, identity.blockHeight)));
+      enriched += batch.length;
+      for (const row of settled) {
+        if (!row || rows.length >= maxRows) continue;
+        if (row.ore < filters.minOre) continue;
+        if (row.shield < filters.minShield) continue;
+        if (row.defenses < filters.minDefenses) continue;
+        if (
+          filters.maxBlocksSinceAction > 0 &&
+          (row.blocksSinceAction === null || row.blocksSinceAction > filters.maxBlocksSinceAction)
+        ) {
+          continue;
+        }
+        rows.push(row);
+      }
+    }
+
+    const noteParts = [`${candidates.length} match${candidates.length === 1 ? '' : 'es'} in the live registries`];
+    if (candidates.length > enriched) {
+      noteParts.push(`facets checked on the first ${enriched}`);
+    }
+    return { rows, totalMatches: candidates.length, enriched, note: noteParts.join(' · ') };
+  }
+
+  /** Planet + owner reads for one scan candidate; null when it can't resolve. */
+  private async enrichCandidate(c: ScanCandidate, blockHeight: number): Promise<ScanRow | null> {
+    try {
+      let ownerQ: PlayerQueryResult | null = null;
+      let planetId = c.planetId;
+      if (c.ownerId) {
+        ownerQ = await this.rawQuery<PlayerQueryResult>('player', c.ownerId).catch(() => null);
+        planetId ||= ownerQ?.Player?.planetId;
+      }
+      if (!planetId) return null;
+      const planetQ = await this.rawQuery<PlanetQueryResult>('planet', planetId);
+      if (!planetQ.Planet?.id) return null;
+      const attrs = planetQ.planetAttributes ?? {};
+      let defenses = 0;
+      for (const [k, v] of Object.entries(attrs)) {
+        if (/Quantity$/.test(k)) defenses += num(v);
+      }
+      const occupied = AMBITS.flatMap((a) => planetQ.Planet[a] ?? []).filter(Boolean).length;
+      const lastAction = num(ownerQ?.gridAttributes?.lastAction);
+      return {
+        kind: c.kind,
+        entityId: c.id,
+        name: c.name,
+        planetId,
+        ownerName: ownerQ?.Player?.name || ownerQ?.Player?.id || planetQ.Planet.owner || '—',
+        guildId: ownerQ?.Player?.guildId ?? '',
+        ore: num(ownerQ?.gridAttributes?.ore),
+        shield: num(attrs.planetaryShield),
+        defenses,
+        structs: occupied,
+        raidActive: num(attrs.blockStartRaid) > 0,
+        blocksSinceAction: lastAction > 0 ? Math.max(0, blockHeight - lastAction) : null,
+      };
+    } catch {
+      return null;
+    }
   }
 
   /**

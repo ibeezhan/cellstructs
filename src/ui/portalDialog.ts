@@ -72,7 +72,8 @@ export class PortalDialog {
     else this.open();
   }
 
-  private async go(query: string): Promise<void> {
+  /** Portal to a cell query — also the entry point for SCAN result clicks. */
+  async go(query: string): Promise<void> {
     const q = query.trim();
     if (!q || this.busy) return;
     this.busy = true;

@@ -7,6 +7,7 @@ import { CellApp } from './render/cellApp';
 import { DetailPanel } from './ui/detailPanel';
 import { Hud } from './ui/hud';
 import { PortalDialog } from './ui/portalDialog';
+import { ScanPopup } from './ui/scanPopup';
 import { SettingsPanel } from './ui/settingsPanel';
 import { Tooltip } from './ui/tooltip';
 
@@ -70,17 +71,23 @@ async function main(): Promise<void> {
     () => cellApp.viewCell(),
   );
 
-  document.getElementById('menu-scan')!.addEventListener('click', () => {
-    cellApp.scanPulse();
-    void manager?.refreshNow();
-  });
+  const scan = new ScanPopup(
+    async (query, filters) => {
+      if (!manager) throw new Error('data layer not started yet');
+      cellApp.scanPulse();
+      return manager.scanUniverse(query, filters);
+    },
+    (planetId) => void portal.go(planetId),
+  );
+
+  document.getElementById('menu-scan')!.addEventListener('click', () => scan.toggle());
   document.getElementById('menu-view')!.addEventListener('click', () => portal.toggle());
   document.getElementById('menu-recenter')!.addEventListener('click', () => cellApp.viewCell());
 
   start();
 
   // dev/debug hook (used by the headless verification harness)
-  (window as unknown as { cellstructs: object }).cellstructs = { cellApp, detail, pipeline, portal };
+  (window as unknown as { cellstructs: object }).cellstructs = { cellApp, detail, pipeline, portal, scan };
 }
 
 void main();
