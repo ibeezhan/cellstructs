@@ -333,6 +333,12 @@ export class CellApp {
     return org;
   }
 
+  /** Pick payload for a struct/organelle id — selection by id (debug + UI). */
+  pickById(id: string): OrganellePick | null {
+    const org = this.organelles.get(id);
+    return org ? this.pickOf(org) : null;
+  }
+
   private pickOf(org: Organelle): OrganellePick {
     return {
       id: org.id,

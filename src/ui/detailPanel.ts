@@ -42,12 +42,20 @@ export class DetailPanel {
   private snapshot: CellSnapshot | null = null;
   /** open inline form, if any */
   private form: ActionSpec | null = null;
+  /** actions the :8420 surface exposes; null = not discovered (assume all) */
+  private supported: Set<string> | null = null;
 
   constructor(private pipeline: ActionPipeline) {
     document.getElementById('detail-close')!.addEventListener('click', () => this.close());
     pipeline.onUpdate = (st) => {
       if (this.pick?.struct?.id === st.structId) this.render();
     };
+  }
+
+  /** Live-discovered `structs_action` enum; unlisted actions render disabled. */
+  setSupportedActions(actions: Set<string> | null): void {
+    this.supported = actions;
+    if (this.pick) this.render();
   }
 
   show(pick: OrganellePick): void {
@@ -134,10 +142,14 @@ export class DetailPanel {
     if (!actions.some((a) => a.action === 'defend')) {
       actions.push({ action: 'defend', label: 'Defend', form: 'defend' });
     }
+    const unsupported: string[] = [];
     for (const a of actions) {
       const btn = document.createElement('button');
       btn.textContent = a.label;
-      btn.disabled = busy;
+      const known = this.supported === null || this.supported.has(a.action);
+      if (!known) unsupported.push(a.action);
+      btn.disabled = busy || !known;
+      if (!known) btn.title = `'${a.action}' is not exposed by the desktop app's :8420 action surface`;
       btn.addEventListener('click', () => {
         if (a.form) {
           this.form = a;
@@ -147,6 +159,12 @@ export class DetailPanel {
         }
       });
       actionsEl.appendChild(btn);
+    }
+    if (unsupported.length > 0) {
+      const note = document.createElement('span');
+      note.className = 'none';
+      note.textContent = `${unsupported.join(', ')}: not exposed over :8420 — disabled`;
+      actionsEl.appendChild(note);
     }
   }
 

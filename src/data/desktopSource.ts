@@ -53,6 +53,20 @@ export class DesktopSource {
     return this.client.callTool('structs_action', { action, args });
   }
 
+  /**
+   * The action names `structs_action` actually accepts, read from the live
+   * tool schema (its `action` enum) so the UI can disable anything the
+   * desktop app doesn't expose instead of failing at submit time.
+   */
+  async fetchSupportedActions(): Promise<Set<string>> {
+    const tools = await this.client.listTools();
+    const tool = tools.find((t) => t.name === 'structs_action');
+    if (!tool) throw new McpError('structs_action tool not present on :8420');
+    const actions = tool.inputSchema?.properties?.action?.enum ?? [];
+    if (actions.length === 0) throw new McpError('structs_action schema has no action enum');
+    return new Set(actions);
+  }
+
   private async rawQuery<T>(type: string, id: string): Promise<T> {
     const text = await this.client.callTool('structs_intel', {
       query: 'query',

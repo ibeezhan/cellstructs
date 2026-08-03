@@ -34,6 +34,7 @@ async function main(): Promise<void> {
 
   const start = (cfg = loadConfig()): void => {
     manager?.stop();
+    detail.setSupportedActions(null);
     manager = new DataManager(cfg, {
       onSnapshot: (snap) => {
         cellApp.applySnapshot(snap);
@@ -46,6 +47,8 @@ async function main(): Promise<void> {
       },
     });
     manager.start();
+    // Which actions the :8420 surface really exposes → disable the rest.
+    void manager.getSupportedActions().then((set) => detail.setSupportedActions(set));
   };
 
   new SettingsPanel((cfg) => start(cfg));
@@ -59,7 +62,7 @@ async function main(): Promise<void> {
   start();
 
   // dev/debug hook (used by the headless verification harness)
-  (window as unknown as { cellstructs: object }).cellstructs = { cellApp };
+  (window as unknown as { cellstructs: object }).cellstructs = { cellApp, detail, pipeline };
 }
 
 void main();

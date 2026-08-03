@@ -148,8 +148,18 @@ export class ActionPipeline {
       if (idx < 0) continue;
       const p = this.awaiting.splice(idx, 1)[0];
       const raw = JSON.stringify(ev.data);
+      // Real receipt shape (observed live): {action, code, error?, height, rawLog?}
+      // — code 0 = success; non-zero code or an error string = rejected on-chain.
+      const code = Number(ev.data.code ?? 0);
+      const errText = typeof ev.data.error === 'string' ? ev.data.error : '';
       const status = String(ev.data.status ?? '');
-      const dropped = /dropped|fail/i.test(status) || /"status"\s*:\s*"dropped"/i.test(raw);
+      const dropped =
+        (Number.isFinite(code) && code !== 0) ||
+        errText.length > 0 ||
+        /dropped|fail/i.test(status) ||
+        /"status"\s*:\s*"dropped"/i.test(raw);
+      const failDetail =
+        [errText, typeof ev.data.rawLog === 'string' ? ev.data.rawLog : ''].filter(Boolean).join(' · ') || raw;
       const txHash =
         (typeof ev.data.tx_hash === 'string' && ev.data.tx_hash) ||
         (typeof ev.data.txhash === 'string' && ev.data.txhash) ||
@@ -160,7 +170,7 @@ export class ActionPipeline {
         ...p,
         phase: dropped ? 'failed' : 'confirmed',
         summary: dropped
-          ? `tx dropped on-chain: ${condense(raw, 160)}`
+          ? `tx rejected on-chain: ${condense(failDetail, 200)}`
           : `tx settled: ${ev.subject}`,
         txHash: txHash || undefined,
         at: Date.now(),

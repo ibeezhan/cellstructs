@@ -30,6 +30,7 @@ export class DataManager {
   private busySnapshot = false;
   private busyEvents = false;
   private desktopWarned = false;
+  private supportedActions: Promise<Set<string> | null> | null = null;
 
   constructor(cfg: AppConfig, listener: DataListener) {
     this.desktop = new DesktopSource(cfg);
@@ -60,6 +61,22 @@ export class DataManager {
       throw new Error('desktop app (:8420) unreachable — actions need its signing surface; showing mock data only');
     }
     return this.desktop.submitAction(action, args);
+  }
+
+  /**
+   * Which actions the desktop app's `structs_action` tool exposes (from its
+   * live schema). Resolves to null when :8420 is unreachable — "unknown", so
+   * the UI keeps buttons enabled and submits report the honest error instead.
+   */
+  async getSupportedActions(): Promise<Set<string> | null> {
+    if (!this.supportedActions) {
+      this.supportedActions = this.desktop.fetchSupportedActions().catch((e) => {
+        console.warn('cellstructs: could not read structs_action schema', e);
+        this.supportedActions = null; // retry on next call
+        return null;
+      });
+    }
+    return this.supportedActions;
   }
 
   /** Menu SCAN: immediate snapshot + event re-read, outside the poll cadence. */

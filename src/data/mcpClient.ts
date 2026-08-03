@@ -18,6 +18,13 @@ interface ToolCallResult {
   isError?: boolean;
 }
 
+export interface ToolInfo {
+  name: string;
+  inputSchema?: {
+    properties?: Record<string, { enum?: string[] }>;
+  };
+}
+
 export class McpHttpClient {
   private sessionId: string | null = null;
   private nextId = 1;
@@ -107,6 +114,16 @@ export class McpHttpClient {
   reset(): void {
     this.initPromise = null;
     this.sessionId = null;
+  }
+
+  /** The server's tool registry — used to discover which actions exist. */
+  async listTools(): Promise<ToolInfo[]> {
+    await this.connect();
+    const result = (await this.post(
+      { jsonrpc: '2.0', id: this.nextId++, method: 'tools/list', params: {} },
+      true,
+    )) as { tools?: ToolInfo[] };
+    return result?.tools ?? [];
   }
 
   /** Call a tool and return its text content. Retries once on session expiry. */
