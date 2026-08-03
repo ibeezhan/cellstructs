@@ -1,0 +1,26 @@
+{
+  "name": "cellstructs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A living-cell lens over the Structs blockchain game — planets rendered as animated cells",
+  "scripts": {
+    "dev": "webpack serve --mode development",
+    "build": "webpack --mode production",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cosmjs/stargate": "^0.34.0",
+    "@cosmjs/tendermint-rpc": "^0.34.0",
+    "pixi.js": "^8.6.6",
+    "simplex-noise": "^4.0.3"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.7",
+    "html-webpack-plugin": "^5.6.3",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.7.3",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.2.0"
+  }
+}

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>cellstructs — living cell lens</title>
+  <style>
+    :root {
+      --ink: #b8d4cd;
+      --ink-dim: #6d8a84;
+      --panel: rgba(8, 16, 20, 0.88);
+      --edge: #23413c;
+      --live: #6fdc9a;
+      --mock: #e0a458;
+      --accent: #79d2e6;
+    }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #05090d; }
+    body { font: 13px/1.5 "SF Mono", ui-monospace, Menlo, monospace; color: var(--ink); }
+    canvas { display: block; }
+    .overlay { position: fixed; z-index: 10; }
+
+    #hud {
+      top: 16px; left: 16px; padding: 12px 16px;
+      background: var(--panel); border: 1px solid var(--edge); border-radius: 10px;
+      min-width: 220px; backdrop-filter: blur(6px);
+    }
+    #hud h1 { margin: 0 0 2px; font-size: 15px; font-weight: 600; letter-spacing: 0.04em; }
+    #hud .sub { color: var(--ink-dim); font-size: 11px; margin-bottom: 8px; }
+    #hud .row { display: flex; justify-content: space-between; gap: 16px; font-size: 12px; }
+    #hud .row span:last-child { color: #dcefe9; }
+    #badge {
+      display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 10px;
+      letter-spacing: 0.12em; font-weight: 700; vertical-align: 2px; margin-left: 8px;
+    }
+    #badge.live { background: rgba(111, 220, 154, 0.15); color: var(--live); border: 1px solid var(--live); }
+    #badge.mock { background: rgba(224, 164, 88, 0.15); color: var(--mock); border: 1px solid var(--mock); }
+    #note { color: var(--mock); font-size: 11px; margin-top: 6px; max-width: 240px; display: none; }
+
+    #settings-toggle {
+      top: 16px; right: 16px; width: 34px; height: 34px; cursor: pointer;
+      background: var(--panel); border: 1px solid var(--edge); border-radius: 8px;
+      color: var(--ink); font-size: 16px; line-height: 34px; text-align: center;
+    }
+    #settings-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    #settings {
+      top: 60px; right: 16px; width: 320px; padding: 16px;
+      background: var(--panel); border: 1px solid var(--edge); border-radius: 10px;
+      backdrop-filter: blur(6px); display: none;
+    }
+    #settings.open { display: block; }
+    #settings h2 { margin: 0 0 4px; font-size: 13px; }
+    #settings p.hint { color: var(--ink-dim); font-size: 11px; margin: 0 0 12px; }
+    #settings label { display: block; font-size: 11px; color: var(--ink-dim); margin: 10px 0 3px; }
+    #settings input {
+      width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 6px;
+      border: 1px solid var(--edge); background: #0a141a; color: var(--ink);
+      font: inherit; font-size: 12px;
+    }
+    #settings input:focus { outline: none; border-color: var(--accent); }
+    #settings .buttons { display: flex; gap: 8px; margin-top: 14px; }
+    #settings button {
+      flex: 1; padding: 7px 0; border-radius: 6px; cursor: pointer; font: inherit; font-size: 12px;
+      border: 1px solid var(--edge); background: #0e1c22; color: var(--ink);
+    }
+    #settings button.primary { border-color: var(--accent); color: var(--accent); }
+    #settings button:hover { filter: brightness(1.25); }
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+
+  <div id="hud" class="overlay">
+    <h1><span id="planet-name">—</span><span id="badge" class="mock">MOCK</span></h1>
+    <div class="sub" id="planet-id">connecting…</div>
+    <div class="row"><span>block</span><span id="stat-block">—</span></div>
+    <div class="row"><span>charge</span><span id="stat-charge">—</span></div>
+    <div class="row"><span>ore</span><span id="stat-ore">—</span></div>
+    <div class="row"><span>alpha</span><span id="stat-alpha">—</span></div>
+    <div class="row"><span>shield</span><span id="stat-shield">—</span></div>
+    <div class="row"><span>organelles</span><span id="stat-structs">—</span></div>
+    <div id="note"></div>
+  </div>
+
+  <div id="settings-toggle" class="overlay" title="Endpoint settings">⚙</div>
+  <div id="settings" class="overlay">
+    <h2>Endpoints</h2>
+    <p class="hint">Saved to localStorage, overrides .env defaults. Token is never sent anywhere except the API you configure.</p>
+    <label for="cfg-api">Desktop API URL (<code>/desktop</code> = dev proxy → 127.0.0.1:8420)</label>
+    <input id="cfg-api" spellcheck="false" placeholder="/desktop" />
+    <label for="cfg-token">Bearer token</label>
+    <input id="cfg-token" type="password" spellcheck="false" placeholder="from mcp_config.json" />
+    <label for="cfg-rpc">Tendermint RPC URL (<code>/rpc</code> = dev proxy → :26657)</label>
+    <input id="cfg-rpc" spellcheck="false" placeholder="/rpc" />
+    <label for="cfg-player">Player ID (blank = auto-detect)</label>
+    <input id="cfg-player" spellcheck="false" placeholder="e.g. 1-471" />
+    <div class="buttons">
+      <button id="cfg-reset">Reset</button>
+      <button id="cfg-save" class="primary">Save &amp; reconnect</button>
+    </div>
+  </div>
+</body>
+</html>

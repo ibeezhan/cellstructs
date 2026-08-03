@@ -6,7 +6,67 @@ Primarily a **skin / visualization layer** that reads live Structs chain state (
 
 ## Status
 
-Early ideation. See [`docs/vision.md`](docs/vision.md) for the concept and [`docs/spec.md`](docs/spec.md) for the technical spec (in progress).
+**Phase 1 shipped**: one planet rendered as a living cell, driven by live data from the local Structs desktop app. See [`docs/vision.md`](docs/vision.md) for the concept and [`docs/spec.md`](docs/spec.md) for the technical spec.
+
+## Running it
+
+```bash
+npm install
+cp .env.example .env   # then paste your desktop-app bearer token into .env
+npm run dev            # → http://localhost:8421
+npm run build          # production bundle in dist/
+```
+
+The bearer token lives on your machine in
+`~/Library/Application Support/structs-app/mcp_config.json` (macOS). `.env` is
+gitignored — **never commit the token**. You can also set/change the endpoint
+and token at runtime via the ⚙ settings panel (persisted to localStorage,
+overrides `.env`).
+
+### Endpoints
+
+| Setting | Default | Meaning |
+|---|---|---|
+| Desktop API URL | `/desktop` | Structs desktop app HTTP API. `/desktop` is proxied by the dev server to `http://127.0.0.1:8420` (the API rejects cross-origin preflight, so same-origin proxying is required in dev; a remote endpoint must support CORS). |
+| Bearer token | — | Auth for the desktop API. |
+| Tendermint RPC | `/rpc` | CosmJS secondary path, dev-proxied to `http://127.0.0.1:26657`. Phase 1 uses it only as a block-height/liveness probe. |
+| Player ID | auto | Pin a player; blank auto-detects via `whoami`. |
+
+If the desktop API is unreachable the app falls back to a bundled **mock
+planet fixture** (clearly badged `MOCK` in the HUD) so the cell always renders.
+Pointing at a remote node (future paid tier) is just a settings change.
+
+## Architecture (Phase 1)
+
+```
+src/
+  config/endpoints.ts      endpoint config: localStorage > .env > defaults
+  data/
+    mcpClient.ts           typed client for the desktop app's MCP-over-HTTP API
+                           (JSON-RPC 2.0 at POST /mcp, SSE-framed, session header)
+    desktopSource.ts       snapshot reads (structs_intel raw entity queries:
+                           player → planet → fleet → structs) + live event feed
+                           (structs_events, cursor-paged, NATS-backed)
+    cosmosSource.ts        CosmJS (@cosmjs/stargate) RPC probe — secondary path
+    mockSource.ts          bundled mock fixture (fallback, badged MOCK)
+    dataManager.ts         source orchestration, polling, fallback switching
+    types.ts               stub entity types for structsd v0.20.0 (Therovis) —
+                           TODO: swap for buf-generated protos
+  mapping/organelles.ts    canonical organelle ↔ struct mapping (spec §4)
+  render/                  PixiJS (WebGL): membrane blob (simplex noise),
+                           procedural organelles, particles, motion language
+  ui/                      HUD (LIVE/MOCK badge, vitals) + settings panel
+```
+
+Motion language implemented per spec §7: idle membrane breathing + cytoplasm
+drift, extractor pulse + ore intake particles while mining, ER flow + alpha
+sparks while refining, Golgi budding on build events, phages docking + membrane
+reddening on raids, lysosome mobilization under stress, and low-charge pallor
+(the cell desaturates and literally slows down, recovering as charge builds).
+
+**Phase 1 does not cover:** guild/tissue view, remote player cells, actionable
+organelles (mine/build/raid from the UI), NATS websocket subscription (events
+are polled through the desktop API instead), or generated protobuf types.
 
 ## The metaphor
 
