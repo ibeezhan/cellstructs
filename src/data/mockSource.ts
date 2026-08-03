@@ -6,7 +6,7 @@
  */
 
 import type { CellEvent, CellSnapshot, StructState } from './types';
-import type { EventsPage } from './desktopSource';
+import type { EventsPage } from './source';
 
 const MOCK_STRUCTS: StructState[] = [
   { id: 'M-1', typeName: 'Command Ship', ambit: 'land', slot: 0, health: 6, healthMax: 6, online: true, built: true, destroyed: false, mining: false, refining: false, building: false },

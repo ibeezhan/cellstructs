@@ -1,0 +1,11 @@
+# cellstructs static frontend — Cloudflare Pages.
+#
+# Build the hosted (read-only) bundle, then deploy:
+#   CELLSTRUCTS_MODE=hosted CELLSTRUCTS_PROXY_URL=<worker-url> npm run build
+#   npx wrangler pages deploy dist --project-name cellstructs
+#
+# The Worker that fronts the chain data lives in worker/wrangler.toml.
+
+name = "cellstructs"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-09-23"

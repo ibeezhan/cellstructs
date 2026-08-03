@@ -34,6 +34,14 @@
     }
     #badge.live { background: rgba(111, 220, 154, 0.15); color: var(--live); border: 1px solid var(--live); }
     #badge.mock { background: rgba(224, 164, 88, 0.15); color: var(--mock); border: 1px solid var(--mock); }
+    /* Hosted read-only build: swap the endpoint fields and flag the mode. */
+    #ro-badge {
+      display: none; margin-left: 6px; padding: 1px 6px; border-radius: 3px;
+      font-size: 9px; letter-spacing: 0.12em; vertical-align: 2px;
+      background: rgba(124, 168, 224, 0.15); color: #9fc4f0; border: 1px solid #4d6b96;
+    }
+    body.hosted #ro-badge { display: inline-block; }
+    body.hosted .local-only, body:not(.hosted) .hosted-only { display: none; }
     #note { color: var(--mock); font-size: 11px; margin-top: 6px; max-width: 240px; display: none; }
 
     #menu { top: 16px; right: 16px; display: flex; gap: 8px; }
@@ -82,6 +90,7 @@
     #detail-actions button:hover { border-color: var(--accent); color: var(--accent); }
     #detail-actions .none { color: var(--ink-dim); font-size: 11px; }
     #detail-actions button:disabled { opacity: 0.45; cursor: wait; }
+    body.hosted #detail-actions button:disabled { cursor: not-allowed; }
     #detail-note { font-size: 10px; margin-top: 8px; display: none; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--edge); }
     #detail-note.pending { border-color: var(--mock); }
     #detail-note.ok { border-color: var(--live); }
@@ -215,7 +224,7 @@
   <div id="stage"></div>
 
   <div id="hud" class="overlay">
-    <h1><span id="player-name">—</span><span id="badge" class="mock">MOCK</span></h1>
+    <h1><span id="player-name">—</span><span id="badge" class="mock">MOCK</span><span id="ro-badge" title="Hosted read-only build — run cellstructs locally to act">READ-ONLY</span></h1>
     <div class="sub" id="planet-sub">connecting…</div>
     <div class="row"><span>block</span><span id="stat-block">—</span></div>
     <div class="row"><span>charge</span><span id="stat-charge">—</span></div>
@@ -295,10 +304,16 @@
   <div id="settings" class="overlay">
     <h2>Endpoints</h2>
     <p class="hint">Saved to localStorage, overrides .env defaults. Token is never sent anywhere except the API you configure.</p>
-    <label for="cfg-api">Desktop API URL (<code>/desktop</code> = dev proxy → 127.0.0.1:8420)</label>
-    <input id="cfg-api" spellcheck="false" placeholder="/desktop" />
-    <label for="cfg-token">Bearer token</label>
-    <input id="cfg-token" type="password" spellcheck="false" placeholder="from mcp_config.json" />
+    <div class="local-only">
+      <label for="cfg-api">Desktop API URL (<code>/desktop</code> = dev proxy → 127.0.0.1:8420)</label>
+      <input id="cfg-api" spellcheck="false" placeholder="/desktop" />
+      <label for="cfg-token">Bearer token</label>
+      <input id="cfg-token" type="password" spellcheck="false" placeholder="from mcp_config.json" />
+    </div>
+    <div class="hosted-only">
+      <label for="cfg-lcd">Chain LCD URL (read-only proxy)</label>
+      <input id="cfg-lcd" spellcheck="false" placeholder="https://…/lcd" />
+    </div>
     <label for="cfg-rpc">Tendermint RPC URL (<code>/rpc</code> = dev proxy → :26657)</label>
     <input id="cfg-rpc" spellcheck="false" placeholder="/rpc" />
     <label for="cfg-player">Player ID (blank = auto-detect)</label>

@@ -3,12 +3,25 @@ const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 require('dotenv').config();
 
+// Two build modes (see src/config/endpoints.ts):
+//   local  (default) — desktop app on :8420, full actions
+//   hosted           — Cloudflare Pages build, reads through the read-only
+//                      Worker proxy, actions disabled
+const MODE = process.env.CELLSTRUCTS_MODE === 'hosted' ? 'hosted' : 'local';
+
 // Build-time defaults injected from .env (see .env.example). Runtime settings
 // (localStorage via the in-app settings panel) override these.
 const ENV_DEFAULTS = {
+  'process.env.CELLSTRUCTS_MODE': JSON.stringify(MODE),
+  'process.env.CELLSTRUCTS_PROXY_URL': JSON.stringify(process.env.CELLSTRUCTS_PROXY_URL || ''),
   'process.env.CELLSTRUCTS_DESKTOP_API_URL': JSON.stringify(process.env.CELLSTRUCTS_DESKTOP_API_URL || '/desktop'),
-  'process.env.CELLSTRUCTS_DESKTOP_API_TOKEN': JSON.stringify(process.env.CELLSTRUCTS_DESKTOP_API_TOKEN || ''),
-  'process.env.CELLSTRUCTS_RPC_URL': JSON.stringify(process.env.CELLSTRUCTS_RPC_URL || '/rpc'),
+  // A hosted bundle is public: never bake the local desktop bearer token into
+  // it, even when one happens to be present in .env on the build machine.
+  'process.env.CELLSTRUCTS_DESKTOP_API_TOKEN': JSON.stringify(
+    MODE === 'hosted' ? '' : process.env.CELLSTRUCTS_DESKTOP_API_TOKEN || '',
+  ),
+  'process.env.CELLSTRUCTS_LCD_URL': JSON.stringify(process.env.CELLSTRUCTS_LCD_URL || ''),
+  'process.env.CELLSTRUCTS_RPC_URL': JSON.stringify(process.env.CELLSTRUCTS_RPC_URL || (MODE === 'hosted' ? '' : '/rpc')),
   'process.env.CELLSTRUCTS_PLAYER_ID': JSON.stringify(process.env.CELLSTRUCTS_PLAYER_ID || ''),
 };
 

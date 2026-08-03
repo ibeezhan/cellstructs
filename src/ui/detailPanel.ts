@@ -45,7 +45,11 @@ export class DetailPanel {
   /** actions the :8420 surface exposes; null = not discovered (assume all) */
   private supported: Set<string> | null = null;
 
-  constructor(private pipeline: ActionPipeline) {
+  constructor(
+    private pipeline: ActionPipeline,
+    /** hosted build: show the real action set, but inert — nothing can sign here */
+    private readOnly = false,
+  ) {
     document.getElementById('detail-close')!.addEventListener('click', () => this.close());
     pipeline.onUpdate = (st) => {
       if (this.pick?.struct?.id === st.structId) this.render();
@@ -148,10 +152,14 @@ export class DetailPanel {
     for (const a of actions) {
       const btn = document.createElement('button');
       btn.textContent = a.label;
-      const known = this.supported === null || this.supported.has(a.action);
+      const known = this.readOnly || this.supported === null || this.supported.has(a.action);
       if (!known) unsupported.push(a.action);
-      btn.disabled = busy || !known;
-      if (!known) btn.title = `'${a.action}' is not exposed by the desktop app's :8420 action surface`;
+      btn.disabled = busy || !known || this.readOnly;
+      if (this.readOnly) {
+        btn.title = 'read-only hosted view — run cellstructs locally to act';
+      } else if (!known) {
+        btn.title = `'${a.action}' is not exposed by the desktop app's :8420 action surface`;
+      }
       btn.addEventListener('click', () => {
         if (a.form) {
           this.form = a;
@@ -161,6 +169,14 @@ export class DetailPanel {
         }
       });
       actionsEl.appendChild(btn);
+    }
+    if (this.readOnly) {
+      const note = document.createElement('span');
+      note.className = 'none';
+      note.textContent =
+        'read-only — this hosted build has no signing surface. Run cellstructs locally against the Structs desktop app to act.';
+      actionsEl.appendChild(note);
+      return;
     }
     if (unsupported.length > 0) {
       const note = document.createElement('span');

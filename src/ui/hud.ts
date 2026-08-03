@@ -14,7 +14,7 @@ export class Hud {
     $('planet-sub').textContent = `${snap.planet.name} · planet ${snap.planet.id}`;
 
     const badge = $('badge');
-    const live = snap.source === 'desktop';
+    const live = snap.source !== 'mock';
     badge.textContent = live ? 'LIVE' : 'MOCK';
     badge.className = live ? 'live' : 'mock';
 

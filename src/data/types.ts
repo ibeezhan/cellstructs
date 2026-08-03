@@ -124,7 +124,7 @@ export interface PlayerQueryResult {
 // Normalized snapshot consumed by the render layer.
 // ---------------------------------------------------------------------------
 
-export type SourceKind = 'desktop' | 'rpc' | 'mock';
+export type SourceKind = 'desktop' | 'lcd' | 'rpc' | 'mock';
 
 export interface StructState {
   id: string;

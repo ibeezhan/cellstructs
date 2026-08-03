@@ -4,7 +4,7 @@
  * layer so the app can point at a remote node later without a rebuild.
  */
 
-import { AppConfig, loadConfig, resetConfig, saveConfig } from '../config/endpoints';
+import { AppConfig, ENV_DEFAULTS, loadConfig, resetConfig, saveConfig } from '../config/endpoints';
 
 const input = (id: string): HTMLInputElement => document.getElementById(id) as HTMLInputElement;
 
@@ -18,9 +18,10 @@ export class SettingsPanel {
 
     document.getElementById('cfg-save')!.addEventListener('click', () => {
       const cfg: AppConfig = {
-        desktopApiUrl: input('cfg-api').value.trim() || '/desktop',
+        desktopApiUrl: input('cfg-api').value.trim() || ENV_DEFAULTS.desktopApiUrl,
         desktopApiToken: input('cfg-token').value.trim(),
-        rpcUrl: input('cfg-rpc').value.trim() || '/rpc',
+        lcdUrl: input('cfg-lcd').value.trim() || ENV_DEFAULTS.lcdUrl,
+        rpcUrl: input('cfg-rpc').value.trim() || ENV_DEFAULTS.rpcUrl,
         playerId: input('cfg-player').value.trim(),
       };
       saveConfig(cfg);
@@ -39,6 +40,7 @@ export class SettingsPanel {
   private fill(cfg: AppConfig): void {
     input('cfg-api').value = cfg.desktopApiUrl;
     input('cfg-token').value = cfg.desktopApiToken;
+    input('cfg-lcd').value = cfg.lcdUrl;
     input('cfg-rpc').value = cfg.rpcUrl;
     input('cfg-player').value = cfg.playerId;
   }
