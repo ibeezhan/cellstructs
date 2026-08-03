@@ -91,8 +91,9 @@ export class DetailPanel {
     if (!pick) return;
     const s = pick.struct;
     const meta = METAPHOR[pick.kind];
-    document.getElementById('detail-name')!.textContent = s ? s.typeName : meta.structs;
-    document.getElementById('detail-type')!.textContent = `${meta.biology} · ${pick.kind}`;
+    // cell-biology identity is primary; the Structs name is the subtitle
+    document.getElementById('detail-name')!.textContent = meta.biology;
+    document.getElementById('detail-type')!.textContent = `${s ? s.typeName : meta.structs} · ${pick.kind}`;
 
     const flag = (b: boolean): string => (b ? 'yes' : 'no');
     const rows: Array<[string, string]> = s

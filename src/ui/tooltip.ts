@@ -12,15 +12,16 @@ export class Tooltip {
   show(pick: OrganellePick, x: number, y: number): void {
     const s = pick.struct;
     const meta = METAPHOR[pick.kind];
-    const name = s ? s.typeName : meta.structs;
+    // cell-biology identity is primary; the Structs name is the subtitle
+    const structsName = s ? s.typeName : meta.structs;
     const stats = s
       ? `#${s.id} · HP ${s.health}/${s.healthMax} · ${s.ambit}:${s.slot}`
       : pick.energy !== undefined
         ? `charge reserve · energy ${(pick.energy * 100).toFixed(0)}%`
         : `#${pick.id}`;
     this.el.innerHTML =
-      `<div class="t-name">${esc(name)}</div>` +
-      `<div class="t-type">${esc(meta.biology)}</div>` +
+      `<div class="t-name">${esc(meta.biology)}</div>` +
+      `<div class="t-type">${esc(structsName)}</div>` +
       `<div class="t-stats">${esc(stats)}</div>` +
       `<div class="t-status">${esc(statusLabel(pick))}</div>`;
     this.el.style.display = 'block';
