@@ -1,4 +1,4 @@
-/** Microscope-slide HUD: planet identity, live/mock badge, vitals. */
+/** Microscope-slide HUD: player identity, live/mock badge, vitals. */
 
 import type { CellSnapshot } from '../data/types';
 
@@ -10,8 +10,8 @@ const $ = (id: string): HTMLElement => {
 
 export class Hud {
   update(snap: CellSnapshot): void {
-    $('planet-name').textContent = snap.planet.name;
-    $('planet-id').textContent = `planet ${snap.planet.id}` + (snap.player ? ` · ${snap.player.name}` : '');
+    $('player-name').textContent = snap.player ? snap.player.name || snap.player.id : snap.planet.name;
+    $('planet-sub').textContent = `${snap.planet.name} · planet ${snap.planet.id}`;
 
     const badge = $('badge');
     const live = snap.source === 'desktop';
