@@ -13,9 +13,11 @@ Primarily a **skin / visualization layer** that reads live Structs chain state (
 - **Hover tooltips** — every organelle shows a cursor-following tip with struct
   name, biology type, id, HP, ambit·slot, and live status (mining/refining/…).
 - **Click → detail panel** — full struct stats plus an ACTIONS section with the
-  real action set for the type (Mine ore / Refine ore / Build struct / Defend /
-  Activate–Deactivate). Buttons are honest stubs: the signing path isn't wired
-  yet, so they log the intent and say so (`src/actions/dispatch.ts` TODO).
+  real action set for the type (Mine ore / Refine ore / Build struct / Attack /
+  Defend / Activate–Deactivate). In **local** mode these are live end-to-end:
+  the button builds the message, the Structs desktop app signs + broadcasts it
+  (keys never enter the webapp), and the organelle animates on the tx receipt.
+  In **hosted** mode they render disabled (no signing surface — read-only).
 - **SCAN menu item** — immediate re-read of chain state outside the poll
   cadence, with a sweep-ring pulse over the cell.
 - **VIEW CELL menu item** — reframes the cell to the default view (the canvas
@@ -48,6 +50,50 @@ overrides `.env`).
 If the desktop API is unreachable the app falls back to a bundled **mock
 planet fixture** (clearly badged `MOCK` in the HUD) so the cell always renders.
 Pointing at a remote node (future paid tier) is just a settings change.
+
+## Hosted (read-only) — Cloudflare
+
+A shareable, **read-only** build is deployed on Cloudflare. Anyone can watch a
+cell breathe on live chain data; **acting requires running locally** (signing
+stays on your machine — see above).
+
+- **Site:** https://cellstructs.pages.dev
+- **Data proxy (Worker):** https://cellstructs-proxy.shayanqwerty-cloudflare.workers.dev
+
+### Architecture
+
+```
+browser ──▶ Cloudflare Pages (static hosted bundle, CELLSTRUCTS_MODE=hosted)
+        └─▶ Cloudflare Worker proxy ──▶ public Structs LCD (structstestnet-111)
+            • adds CORS + TLS, injects any UPSTREAM_TOKEN from a Worker secret
+            • read-only: RPC/MCP write methods are refused (403); LCD is GET-only
+```
+
+Local mode talks to your desktop app (`:8420`) with full actions. Hosted mode
+talks to the Worker and disables actions. Same codebase, switched by build env.
+
+### Data source
+
+The Worker fronts the **public Structs testnet LCD**
+`https://public.testnet.structs.network` (chain `structstestnet-111`, structsd
+v0.20.0), which serves the structs module over REST at `/structs/{type}/{id}`
+with `Access-Control-Allow-Origin: *`. The Guild API and desktop MCP API have no
+public, CORS-enabled instance, so those upstreams are left unset (config-only).
+
+### Redeploy
+
+```bash
+export CLOUDFLARE_API_TOKEN=…                       # never commit this
+npx wrangler deploy --config worker/wrangler.toml   # the data proxy
+CELLSTRUCTS_MODE=hosted \
+  CELLSTRUCTS_PROXY_URL=https://cellstructs-proxy.shayanqwerty-cloudflare.workers.dev \
+  npm run build
+npx wrangler pages deploy dist --project-name cellstructs --branch main
+```
+
+Upstream base URLs live in `worker/wrangler.toml` `[vars]`; any upstream token is
+a Worker **secret** (`npx wrangler secret put UPSTREAM_TOKEN --config worker/wrangler.toml`),
+never in the repo.
 
 ## Architecture (Phase 1)
 
