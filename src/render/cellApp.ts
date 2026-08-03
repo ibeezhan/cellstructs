@@ -5,8 +5,8 @@
  * low-charge pallor (desaturate + slow down).
  */
 
-import { Application, ColorMatrixFilter, Container, Graphics } from 'pixi.js';
-import { organelleFor, OrganelleKind } from '../mapping/organelles';
+import { Application, ColorMatrixFilter, Container, FederatedPointerEvent, Graphics } from 'pixi.js';
+import { organelleFor, OrganelleKind, OrganellePick } from '../mapping/organelles';
 import type { CellEvent, CellSnapshot } from '../data/types';
 import { Membrane } from './membrane';
 import { ParticleSystem } from './particles';
@@ -45,10 +45,23 @@ export class CellApp {
   private particles = new ParticleSystem();
   private filter = new ColorMatrixFilter();
 
+  private fxG = new Graphics();
+
   private organelles = new Map<string, Organelle>();
   private phages: Phage[] = [];
   private snapshot: CellSnapshot | null = null;
   private stressUntil = 0;
+
+  /** camera over the cell container: pan/zoom targets eased per frame */
+  private cam = { x: 0, y: 0, zoom: 1, tX: 0, tY: 0, tZoom: 1 };
+  private drag: { sx: number; sy: number; tX: number; tY: number } | null = null;
+  /** transient menu feedback: SCAN sweep ring / VIEW CELL framing ring */
+  private scanT = -1;
+  private focusT = -1;
+
+  /** hover payload + client coords; null = pointer left the organelle */
+  onHover: ((pick: OrganellePick | null, x: number, y: number) => void) | null = null;
+  onSelect: ((pick: OrganellePick) => void) | null = null;
 
   private motion: Motion = {
     time: 0,
@@ -76,13 +89,64 @@ export class CellApp {
     });
     parent.appendChild(this.app.canvas);
 
-    this.cell.addChild(this.membrane, this.organelleLayer, this.particles.g, this.phageLayer);
+    this.cell.addChild(this.membrane, this.organelleLayer, this.particles.g, this.phageLayer, this.fxG);
     this.cell.filters = [this.filter];
     this.app.stage.addChild(this.dustG, this.cell);
 
+    this.setupPointer();
     this.layout();
     window.addEventListener('resize', () => this.layout());
     this.app.ticker.add(() => this.update(this.app.ticker.deltaMS / 1000));
+  }
+
+  /** Stage-level pan (drag on empty space) + wheel zoom toward the cursor. */
+  private setupPointer(): void {
+    const stage = this.app.stage;
+    stage.eventMode = 'static';
+    stage.hitArea = this.app.screen;
+    stage.on('pointerdown', (e) => {
+      if (e.target === stage) {
+        this.drag = { sx: e.global.x, sy: e.global.y, tX: this.cam.tX, tY: this.cam.tY };
+      }
+    });
+    stage.on('pointermove', (e) => {
+      if (!this.drag) return;
+      this.cam.tX = this.drag.tX + (e.global.x - this.drag.sx);
+      this.cam.tY = this.drag.tY + (e.global.y - this.drag.sy);
+    });
+    const endDrag = (): void => {
+      this.drag = null;
+    };
+    stage.on('pointerup', endDrag);
+    stage.on('pointerupoutside', endDrag);
+    this.app.canvas.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault();
+        const cam = this.cam;
+        const next = Math.min(3, Math.max(0.4, cam.tZoom * Math.exp(-e.deltaY * 0.0012)));
+        // keep the world point under the cursor fixed while zooming
+        const px = e.clientX - this.app.screen.width / 2;
+        const py = e.clientY - this.app.screen.height / 2;
+        cam.tX = px - ((px - cam.tX) / cam.tZoom) * next;
+        cam.tY = py - ((py - cam.tY) / cam.tZoom) * next;
+        cam.tZoom = next;
+      },
+      { passive: false },
+    );
+  }
+
+  /** Menu SCAN: sweep-ring feedback for a manual chain re-read. */
+  scanPulse(): void {
+    this.scanT = 0;
+  }
+
+  /** Menu VIEW CELL: reset the camera to the default framed view. */
+  viewCell(): void {
+    this.cam.tX = 0;
+    this.cam.tY = 0;
+    this.cam.tZoom = 1;
+    this.focusT = 0;
   }
 
   private cellRadius(): number {
@@ -223,8 +287,24 @@ export class CellApp {
       default:
         org = new Vesicle(id, kind);
     }
+    org.eventMode = 'static';
+    org.cursor = 'pointer';
+    const hover = (e: FederatedPointerEvent): void => this.onHover?.(this.pickOf(org), e.clientX, e.clientY);
+    org.on('pointerover', hover);
+    org.on('pointermove', hover);
+    org.on('pointerout', () => this.onHover?.(null, 0, 0));
+    org.on('pointertap', () => this.onSelect?.(this.pickOf(org)));
     this.organelleLayer.addChild(org);
     return org;
+  }
+
+  private pickOf(org: Organelle): OrganellePick {
+    return {
+      id: org.id,
+      kind: org.kind,
+      struct: org.struct,
+      energy: org instanceof Mitochondrion ? org.energy : undefined,
+    };
   }
 
   private place(org: Organelle, R: number): void {
@@ -279,6 +359,7 @@ export class CellApp {
         org.redraw(R * 0.05);
       }
     }
+    org.refreshHitArea();
   }
 
   // -- per-frame ------------------------------------------------------------
@@ -299,6 +380,15 @@ export class CellApp {
     const timeScale = 1 - 0.45 * m.pale;
     m.time += dt * timeScale;
 
+    // camera ease toward pan/zoom targets
+    const cam = this.cam;
+    cam.zoom = approach(cam.zoom, cam.tZoom, 8, dt);
+    cam.x = approach(cam.x, cam.tX, 12, dt);
+    cam.y = approach(cam.y, cam.tY, 12, dt);
+    this.cell.position.set(this.app.screen.width / 2 + cam.x, this.app.screen.height / 2 + cam.y);
+    this.cell.scale.set(cam.zoom);
+    this.updateFx(dt);
+
     this.membrane.update(m);
     for (const org of this.organelles.values()) org.animate(m, dt);
     this.updatePhages(m, dt);
@@ -310,6 +400,32 @@ export class CellApp {
     this.filter.reset();
     this.filter.saturate(-0.7 * m.pale, false);
     this.filter.brightness(1 - 0.18 * m.pale, true);
+  }
+
+  /** SCAN sweep ring (expanding) + VIEW CELL framing ring (contracting). */
+  private updateFx(dt: number): void {
+    const R = this.cellRadius();
+    const g = this.fxG;
+    g.clear();
+    if (this.scanT >= 0) {
+      this.scanT += dt * 1.1;
+      if (this.scanT >= 1) this.scanT = -1;
+      else {
+        const t = this.scanT;
+        const r = R * (0.1 + 1.3 * t);
+        g.circle(0, 0, r).stroke({ width: R * 0.02, color: PALETTE.shield, alpha: 0.55 * (1 - t) });
+        g.circle(0, 0, r * 0.85).stroke({ width: R * 0.008, color: PALETTE.alphaSpark, alpha: 0.4 * (1 - t) });
+      }
+    }
+    if (this.focusT >= 0) {
+      this.focusT += dt * 1.4;
+      if (this.focusT >= 1) this.focusT = -1;
+      else {
+        const t = this.focusT;
+        const r = R * (1.5 - 0.44 * t);
+        g.circle(0, 0, r).stroke({ width: R * 0.014, color: PALETTE.membraneInner, alpha: 0.5 * (1 - t * 0.6) });
+      }
+    }
   }
 
   private updatePhages(m: Motion, dt: number): void {

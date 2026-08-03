@@ -8,6 +8,19 @@ Primarily a **skin / visualization layer** that reads live Structs chain state (
 
 **Phase 1 shipped**: one planet rendered as a living cell, driven by live data from the local Structs desktop app. See [`docs/vision.md`](docs/vision.md) for the concept and [`docs/spec.md`](docs/spec.md) for the technical spec.
 
+**Interactivity pass shipped** on the Planet view:
+
+- **Hover tooltips** — every organelle shows a cursor-following tip with struct
+  name, biology type, id, HP, ambit·slot, and live status (mining/refining/…).
+- **Click → detail panel** — full struct stats plus an ACTIONS section with the
+  real action set for the type (Mine ore / Refine ore / Build struct / Defend /
+  Activate–Deactivate). Buttons are honest stubs: the signing path isn't wired
+  yet, so they log the intent and say so (`src/actions/dispatch.ts` TODO).
+- **SCAN menu item** — immediate re-read of chain state outside the poll
+  cadence, with a sweep-ring pulse over the cell.
+- **VIEW CELL menu item** — reframes the cell to the default view (the canvas
+  now supports drag-pan and wheel-zoom; VIEW CELL resets the camera).
+
 ## Running it
 
 ```bash
@@ -53,9 +66,13 @@ src/
     types.ts               stub entity types for structsd v0.20.0 (Therovis) —
                            TODO: swap for buf-generated protos
   mapping/organelles.ts    canonical organelle ↔ struct mapping (spec §4)
+  actions/dispatch.ts      struct action dispatch — stub until the signing
+                           surface is wired (logs intent, never fakes success)
   render/                  PixiJS (WebGL): membrane blob (simplex noise),
-                           procedural organelles, particles, motion language
-  ui/                      HUD (LIVE/MOCK badge, vitals) + settings panel
+                           procedural organelles, particles, motion language,
+                           pointer picking + camera (pan/zoom/reframe)
+  ui/                      HUD (LIVE/MOCK badge, vitals), settings panel,
+                           hover tooltip, organelle detail panel
 ```
 
 Motion language implemented per spec §7: idle membrane breathing + cytoplasm
@@ -64,9 +81,10 @@ sparks while refining, Golgi budding on build events, phages docking + membrane
 reddening on raids, lysosome mobilization under stress, and low-charge pallor
 (the cell desaturates and literally slows down, recovering as charge builds).
 
-**Phase 1 does not cover:** guild/tissue view, remote player cells, actionable
-organelles (mine/build/raid from the UI), NATS websocket subscription (events
-are polled through the desktop API instead), or generated protobuf types.
+**Not covered yet:** guild/tissue view, remote player cells, actually
+dispatching actions (the UI renders per-type action buttons but the signing
+path is a logged TODO stub), NATS websocket subscription (events are polled
+through the desktop API instead), and generated protobuf types.
 
 ## The metaphor
 

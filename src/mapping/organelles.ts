@@ -4,6 +4,8 @@
  * by name pattern so new defensive types map sensibly without a code change.
  */
 
+import type { StructState } from '../data/types';
+
 export type OrganelleKind =
   | 'nucleus' // Command Ship — nucleus / DNA
   | 'mitochondrion' // Reactor / charge — energy production
@@ -33,6 +35,26 @@ export function organelleFor(structTypeName: string): OrganelleKind {
     if (rule.match.test(structTypeName)) return rule.kind;
   }
   return 'vesicle';
+}
+
+/** What the pointer picked in the cell — payload for the tooltip/detail UI. */
+export interface OrganellePick {
+  id: string;
+  kind: OrganelleKind;
+  struct: StructState | null;
+  /** ambient mitochondria only: 0..1 charge-derived energy */
+  energy?: number;
+}
+
+/** Compact live-status word for a picked organelle (tooltip + detail panel). */
+export function statusLabel(pick: OrganellePick): string {
+  const s = pick.struct;
+  if (!s) return pick.kind === 'mitochondrion' ? 'ambient' : '—';
+  if (s.destroyed) return 'destroyed';
+  if (s.building) return 'building';
+  const active = [s.mining && 'mining', s.refining && 'refining'].filter(Boolean) as string[];
+  if (active.length) return active.join(' + ') + (s.online ? '' : ' (offline)');
+  return s.online ? 'online' : 'offline';
 }
 
 /** Full metaphor table (for UI/tooltips), mirroring spec §4. */

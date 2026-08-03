@@ -50,6 +50,12 @@ export class DataManager {
     this.timers = [];
   }
 
+  /** Menu SCAN: immediate snapshot + event re-read, outside the poll cadence. */
+  async refreshNow(): Promise<void> {
+    await this.refreshSnapshot();
+    await this.refreshEvents();
+  }
+
   private async refreshSnapshot(): Promise<void> {
     if (this.busySnapshot) return;
     this.busySnapshot = true;

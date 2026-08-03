@@ -36,12 +36,52 @@
     #badge.mock { background: rgba(224, 164, 88, 0.15); color: var(--mock); border: 1px solid var(--mock); }
     #note { color: var(--mock); font-size: 11px; margin-top: 6px; max-width: 240px; display: none; }
 
+    #menu { top: 16px; right: 16px; display: flex; gap: 8px; }
+    #menu button {
+      padding: 0 12px; height: 34px; cursor: pointer;
+      background: var(--panel); border: 1px solid var(--edge); border-radius: 8px;
+      color: var(--ink); font: inherit; font-size: 11px; letter-spacing: 0.1em;
+    }
+    #menu button:hover { border-color: var(--accent); color: var(--accent); }
     #settings-toggle {
-      top: 16px; right: 16px; width: 34px; height: 34px; cursor: pointer;
+      width: 34px; height: 34px; cursor: pointer;
       background: var(--panel); border: 1px solid var(--edge); border-radius: 8px;
       color: var(--ink); font-size: 16px; line-height: 34px; text-align: center;
     }
     #settings-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    #tooltip {
+      position: fixed; z-index: 30; display: none; pointer-events: none;
+      background: var(--panel); border: 1px solid var(--edge); border-radius: 8px;
+      padding: 7px 10px; font-size: 11px; line-height: 1.45; max-width: 250px;
+      backdrop-filter: blur(6px);
+    }
+    #tooltip .t-name { color: #dcefe9; font-weight: 600; font-size: 12px; }
+    #tooltip .t-type { color: var(--accent); font-size: 10px; letter-spacing: 0.06em; }
+    #tooltip .t-stats { color: var(--ink-dim); }
+    #tooltip .t-status { color: var(--live); }
+
+    #detail {
+      right: 16px; bottom: 16px; width: 280px; padding: 14px 16px;
+      background: var(--panel); border: 1px solid var(--edge); border-radius: 10px;
+      backdrop-filter: blur(6px); display: none;
+    }
+    #detail.open { display: block; }
+    #detail h2 { margin: 0 0 2px; font-size: 14px; padding-right: 20px; }
+    #detail .sub { color: var(--accent); font-size: 10px; letter-spacing: 0.06em; margin-bottom: 10px; }
+    #detail-close { position: absolute; top: 10px; right: 12px; cursor: pointer; color: var(--ink-dim); font-size: 13px; }
+    #detail-close:hover { color: var(--accent); }
+    #detail .row { display: flex; justify-content: space-between; gap: 16px; font-size: 12px; }
+    #detail .row span:last-child { color: #dcefe9; }
+    #detail h3 { margin: 12px 0 6px; font-size: 10px; letter-spacing: 0.12em; color: var(--ink-dim); }
+    #detail-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    #detail-actions button {
+      padding: 6px 10px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 11px;
+      border: 1px solid var(--edge); background: #0e1c22; color: var(--ink);
+    }
+    #detail-actions button:hover { border-color: var(--accent); color: var(--accent); }
+    #detail-actions .none { color: var(--ink-dim); font-size: 11px; }
+    #detail-note { color: var(--mock); font-size: 10px; margin-top: 8px; display: none; }
 
     #settings {
       top: 60px; right: 16px; width: 320px; padding: 16px;
@@ -82,7 +122,23 @@
     <div id="note"></div>
   </div>
 
-  <div id="settings-toggle" class="overlay" title="Endpoint settings">⚙</div>
+  <div id="tooltip"></div>
+
+  <aside id="detail" class="overlay">
+    <div id="detail-close" title="Close">✕</div>
+    <h2 id="detail-name">—</h2>
+    <div class="sub" id="detail-type">—</div>
+    <div id="detail-body"></div>
+    <h3>ACTIONS</h3>
+    <div id="detail-actions"></div>
+    <div id="detail-note"></div>
+  </aside>
+
+  <div id="menu" class="overlay">
+    <button id="menu-scan" title="Re-read live chain state now">SCAN</button>
+    <button id="menu-view" title="Reframe the cell in the viewport">VIEW CELL</button>
+    <div id="settings-toggle" title="Endpoint settings">⚙</div>
+  </div>
   <div id="settings" class="overlay">
     <h2>Endpoints</h2>
     <p class="hint">Saved to localStorage, overrides .env defaults. Token is never sent anywhere except the API you configure.</p>

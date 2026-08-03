@@ -4,7 +4,7 @@
  * mine pulse, ER refine flow, lysosome mobilization, phage docking.
  */
 
-import { Container, Graphics } from 'pixi.js';
+import { Circle, Container, Graphics } from 'pixi.js';
 import type { OrganelleKind } from '../mapping/organelles';
 import type { StructState } from '../data/types';
 import type { Membrane } from './membrane';
@@ -39,6 +39,15 @@ export abstract class Organelle extends Container {
 
   /** Rebuild static geometry when the cell is laid out. size = base pixel scale. */
   abstract redraw(size: number): void;
+
+  /**
+   * Pointer hit region, refreshed after layout. Default is a disc around the
+   * organelle; ring/arc-shaped kinds override so overlapping organelles
+   * (ER over nucleus, shield arcs on the membrane) stay individually hoverable.
+   */
+  refreshHitArea(): void {
+    this.hitArea = new Circle(0, 0, this.size * 1.35);
+  }
 
   animate(m: Motion, dt: number): void {
     this.flash = Math.max(0, this.flash - dt * 1.6);
@@ -84,6 +93,11 @@ export class Nucleus extends Organelle {
     const s = 1 + 0.012 * Math.sin(m.time * 0.55);
     this.scale.set(s);
     this.rotation = 0.03 * Math.sin(m.time * 0.2);
+  }
+
+  /** Tight disc so the surrounding ER ribbons keep their own hover region. */
+  refreshHitArea(): void {
+    this.hitArea = new Circle(0, 0, this.size * 1.02);
   }
 }
 
@@ -214,6 +228,20 @@ export class ErRefinery extends Organelle {
     this.g.alpha = 0.85 + 0.15 * Math.sin(m.time * (active ? 2.2 : 0.6));
   }
 
+  /** Ring band over the ribbons only — the nucleus underneath stays hoverable. */
+  refreshHitArea(): void {
+    this.hitArea = {
+      contains: (x: number, y: number): boolean => {
+        const N = this.nucleusSize;
+        const r = Math.hypot(x, y / 0.92);
+        if (r < N * 1.1 || r > N * 1.78) return false;
+        let d = (Math.atan2(y / 0.92, x) - this.start) % TAU;
+        if (d < 0) d += TAU;
+        return d <= this.span + 0.2 || d >= TAU - 0.2;
+      },
+    };
+  }
+
   get refining(): boolean {
     return this.struct?.refining ?? false;
   }
@@ -299,6 +327,8 @@ export class Lysosome extends Organelle {
 export class ShieldArc extends Organelle {
   dockAngle = 0;
   private membrane: Membrane | null = null;
+  /** latest docked radius (from tick) — drives the pointer hit band */
+  private lastR = 0;
 
   attach(membrane: Membrane, angle: number): void {
     this.membrane = membrane;
@@ -309,8 +339,22 @@ export class ShieldArc extends Organelle {
     this.size = size;
   }
 
+  /** Arc band riding the membrane (the container itself never moves). */
+  refreshHitArea(): void {
+    this.hitArea = {
+      contains: (x: number, y: number): boolean => {
+        if (this.lastR <= 0) return false;
+        if (Math.abs(Math.hypot(x, y) - this.lastR) > this.size * 1.5) return false;
+        let d = Math.abs(Math.atan2(y, x) - this.dockAngle) % TAU;
+        if (d > Math.PI) d = TAU - d;
+        return d <= 0.52;
+      },
+    };
+  }
+
   protected tick(m: Motion): void {
     if (!this.membrane) return;
+    this.lastR = this.membrane.radiusAt(this.dockAngle, m);
     const g = this.g;
     const spread = 0.42;
     const online = this.struct?.online ?? true;
