@@ -1,0 +1,39 @@
+# cellstructs read-only data proxy (Cloudflare Worker).
+# Deploy:  npx wrangler deploy --config worker/wrangler.toml
+#
+# Secrets are NEVER set here — use `npx wrangler secret put <NAME> --config
+# worker/wrangler.toml`. Only public upstream bases belong in [vars].
+
+name = "cellstructs-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-09-23"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[vars]
+# Public Structs testnet node (chain structstestnet-111), documented in
+# playstructs/structs-ai TOOLS.md as the canonical public endpoint. Serves the
+# Cosmos SDK LCD over HTTPS with `Access-Control-Allow-Origin: *` and no auth.
+UPSTREAM_LCD = "https://public.testnet.structs.network"
+
+# CometBFT RPC on the same host. NOTE: port 26657 is outside the port range a
+# Cloudflare Worker is allowed to fetch, so this route answers 502 in practice;
+# it is kept configured for self-hosted deployments on a standard port. The
+# hosted frontend reads block height from the LCD instead.
+UPSTREAM_RPC = "https://public.testnet.structs.network:26657"
+
+# Structs Guild API. Left unset on purpose: every known guild API instance
+# (crew.oh.energy, beta.playstructs.com, shell.crab.la) returns 401 "Login
+# required" for entity reads and sends no CORS headers, so there is no public
+# base to point at. Set it plus the UPSTREAM_TOKEN secret if you have access.
+UPSTREAM_GUILD_API = ""
+
+# MCP-over-HTTP base of a Structs desktop/agent API. No public host exists;
+# set it (plus UPSTREAM_DESKTOP_TOKEN) only if you run one yourself. The proxy
+# still refuses `structs_action` on this route — reads only.
+UPSTREAM_DESKTOP_API = ""
+
+# Comma-separated origins, or "*". The upstream data is public and read-only.
+ALLOWED_ORIGINS = "*"

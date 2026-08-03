@@ -1,7 +1,7 @@
 /** cellstructs bootstrap: data layer → living cell renderer + overlay UI. */
 
 import { ActionPipeline } from './actions/dispatch';
-import { loadConfig } from './config/endpoints';
+import { READ_ONLY, loadConfig } from './config/endpoints';
 import { DataManager } from './data/dataManager';
 import { CellApp } from './render/cellApp';
 import { DetailPanel } from './ui/detailPanel';
@@ -12,6 +12,9 @@ import { SettingsPanel } from './ui/settingsPanel';
 import { Tooltip } from './ui/tooltip';
 
 async function main(): Promise<void> {
+  // Hosted read-only build: swaps the endpoint fields and flags the mode.
+  if (READ_ONLY) document.body.classList.add('hosted');
+
   const stage = document.getElementById('stage')!;
   const cellApp = new CellApp();
   await cellApp.mount(stage);
@@ -29,7 +32,7 @@ async function main(): Promise<void> {
     },
   });
   pipeline.onEffect = (action, structId) => cellApp.actionEffect(action, structId);
-  const detail = new DetailPanel(pipeline);
+  const detail = new DetailPanel(pipeline, READ_ONLY);
 
   cellApp.onHover = (pick, x, y) => (pick ? tooltip.show(pick, x, y) : tooltip.hide());
   cellApp.onSelect = (pick) => detail.show(pick);

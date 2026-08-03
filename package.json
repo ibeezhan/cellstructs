@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "webpack serve --mode development",
     "build": "webpack --mode production",
-    "typecheck": "tsc --noEmit"
+    "build:hosted": "CELLSTRUCTS_MODE=hosted webpack --mode production",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p worker/tsconfig.json",
+    "deploy:worker": "wrangler deploy --config worker/wrangler.toml",
+    "deploy:pages": "wrangler pages deploy dist --project-name cellstructs"
   },
   "dependencies": {
     "@cosmjs/stargate": "^0.34.0",

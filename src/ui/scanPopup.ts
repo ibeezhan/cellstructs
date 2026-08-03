@@ -5,7 +5,7 @@
  * the VIEW CELL loader.
  */
 
-import type { ScanFilters, ScanResult, ScanRow } from '../data/desktopSource';
+import type { ScanFilters, ScanResult, ScanRow } from '../data/source';
 import { esc } from './dom';
 
 export class ScanPopup {
