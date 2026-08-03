@@ -107,6 +107,43 @@
     }
     .action-form .form-buttons button.primary { border-color: var(--accent); color: var(--accent); }
 
+    .modal {
+      position: fixed; z-index: 40; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 360px; padding: 18px 20px;
+      background: var(--panel); border: 1px solid var(--edge); border-radius: 12px;
+      backdrop-filter: blur(8px); display: none;
+    }
+    .modal.open { display: block; }
+    .modal h2 { margin: 0 0 4px; font-size: 13px; letter-spacing: 0.1em; }
+    .modal p.hint { color: var(--ink-dim); font-size: 11px; margin: 0 0 12px; }
+    .modal .close { position: absolute; top: 12px; right: 14px; cursor: pointer; color: var(--ink-dim); }
+    .modal .close:hover { color: var(--accent); }
+    #portal-row { display: flex; gap: 8px; }
+    #portal-row input {
+      flex: 1; box-sizing: border-box; padding: 7px 10px; border-radius: 6px;
+      border: 1px solid var(--edge); background: #0a141a; color: var(--ink);
+      font: inherit; font-size: 12px;
+    }
+    #portal-row input:focus { outline: none; border-color: var(--accent); }
+    #portal-row button, #portal-foot button {
+      padding: 7px 12px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 11px;
+      border: 1px solid var(--edge); background: #0e1c22; color: var(--ink);
+    }
+    #portal-row button.primary { border-color: var(--accent); color: var(--accent); }
+    #portal-row button:hover, #portal-foot button:hover { filter: brightness(1.3); }
+    #portal-status { font-size: 11px; margin-top: 8px; min-height: 16px; color: var(--ink-dim); }
+    #portal-status.err { color: #e07a6a; }
+    #portal-status.busy { color: var(--mock); }
+    #portal-recent { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    #portal-recent .chips-label { width: 100%; font-size: 10px; letter-spacing: 0.12em; color: var(--ink-dim); }
+    #portal-recent button {
+      padding: 4px 10px; border-radius: 99px; cursor: pointer; font: inherit; font-size: 11px;
+      border: 1px solid var(--edge); background: #0e1c22; color: var(--ink);
+    }
+    #portal-recent button:hover { border-color: var(--accent); color: var(--accent); }
+    #portal-foot { display: flex; gap: 8px; margin-top: 14px; }
+    #portal-foot button { flex: 1; }
+
     #settings {
       top: 60px; right: 16px; width: 320px; padding: 16px;
       background: var(--panel); border: 1px solid var(--edge); border-radius: 10px;
@@ -159,9 +196,26 @@
   </aside>
 
   <div id="menu" class="overlay">
-    <button id="menu-scan" title="Re-read live chain state now">SCAN</button>
-    <button id="menu-view" title="Reframe the cell in the viewport">VIEW CELL</button>
+    <button id="menu-scan" title="Scan the universe — search players, planets, guilds">SCAN</button>
+    <button id="menu-view" title="Portal to any cell by id or name">VIEW CELL</button>
+    <button id="menu-recenter" title="Recenter the cell in the viewport">⌖</button>
     <div id="settings-toggle" title="Endpoint settings">⚙</div>
+  </div>
+
+  <div id="portal" class="modal">
+    <div class="close" id="portal-close" title="Close">✕</div>
+    <h2>VIEW CELL — PORTAL</h2>
+    <p class="hint">Enter a cell id (planet <code>2-3034</code>, player <code>1-471</code>) or a player/planet name.</p>
+    <div id="portal-row">
+      <input id="portal-input" spellcheck="false" placeholder="e.g. 2-3034 or econ-1" />
+      <button id="portal-go" class="primary">PORTAL</button>
+    </div>
+    <div id="portal-status"></div>
+    <div id="portal-recent"></div>
+    <div id="portal-foot">
+      <button id="portal-home" title="Return to your own cell">⌂ home cell</button>
+      <button id="portal-recenter" title="Reframe the current cell">⌖ recenter</button>
+    </div>
   </div>
   <div id="settings" class="overlay">
     <h2>Endpoints</h2>

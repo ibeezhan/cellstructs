@@ -13,6 +13,8 @@ import type {
   FleetQueryResult,
   PlanetQueryResult,
   PlayerQueryResult,
+  RawPlanet,
+  RawPlayer,
   StructQueryResult,
   StructState,
 } from './types';
@@ -79,6 +81,23 @@ export class DesktopSource {
     }
   }
 
+  /** Paged entity list (LCD-style pagination via next_key). */
+  private async rawList<T>(
+    type: 'player' | 'planet',
+    limit: number,
+    paginationKey?: string,
+  ): Promise<{ items: T[]; next: string | null }> {
+    const text = await this.client.callTool('structs_intel', {
+      query: 'query',
+      args: { type, limit, ...(paginationKey ? { pagination_key: paginationKey } : {}) },
+    });
+    const j = JSON.parse(text) as Record<string, unknown>;
+    const key = type === 'player' ? 'Player' : 'Planet';
+    const items = (j[key] ?? []) as T[];
+    const next = (j.pagination as { next_key?: string } | undefined)?.next_key ?? null;
+    return { items, next };
+  }
+
   /** whoami is plain text; parse the labelled fields. */
   async fetchIdentity(): Promise<Identity> {
     const text = await this.client.callTool('structs_intel', { query: 'whoami' });
@@ -93,23 +112,42 @@ export class DesktopSource {
     return identity;
   }
 
-  async fetchSnapshot(): Promise<CellSnapshot> {
+  /**
+   * Normalized snapshot of a planet-as-cell. With no argument this is the
+   * signed-in player's own planet; with `targetPlanetId` it renders any
+   * planet in the universe (VIEW CELL portal) — the owner's player record
+   * supplies the identity/vitals when it resolves.
+   */
+  async fetchSnapshot(targetPlanetId?: string): Promise<CellSnapshot> {
     const identity = await this.fetchIdentity();
-    const playerQ = await this.rawQuery<PlayerQueryResult>('player', identity.playerId);
-    const planetId = playerQ.Player?.planetId || identity.planetId;
-    if (!planetId) throw new McpError('player has no planet');
-    const planetQ = await this.rawQuery<PlanetQueryResult>('planet', planetId);
+    let planetQ: PlanetQueryResult;
+    let playerQ: PlayerQueryResult | null;
+    let viewPlayerId: string;
+    if (targetPlanetId) {
+      planetQ = await this.rawQuery<PlanetQueryResult>('planet', targetPlanetId);
+      if (!planetQ.Planet?.id) throw new McpError(`planet ${targetPlanetId} not found`);
+      viewPlayerId = planetQ.Planet.owner_type === 'Player' ? planetQ.Planet.owner : '';
+      playerQ = viewPlayerId
+        ? await this.rawQuery<PlayerQueryResult>('player', viewPlayerId).catch(() => null)
+        : null;
+    } else {
+      viewPlayerId = identity.playerId;
+      playerQ = await this.rawQuery<PlayerQueryResult>('player', viewPlayerId);
+      const planetId = playerQ.Player?.planetId || identity.planetId;
+      if (!planetId) throw new McpError('player has no planet');
+      planetQ = await this.rawQuery<PlanetQueryResult>('planet', planetId);
+    }
 
     const slotIds = AMBITS.flatMap((a) => planetQ.Planet[a] ?? []).filter(Boolean);
 
     // The command ship (nucleus) and combat structs live in the player's
     // fleet, not in planet slots — include them while the fleet is on station
     // at this planet.
-    const fleetId = playerQ.Player?.fleetId;
+    const fleetId = playerQ?.Player?.fleetId;
     if (fleetId) {
       try {
         const fleetQ = await this.rawQuery<FleetQueryResult>('fleet', fleetId);
-        if (fleetQ.Fleet?.locationId === planetId) {
+        if (fleetQ.Fleet?.locationId === planetQ.Planet.id) {
           if (fleetQ.Fleet.commandStruct) slotIds.push(fleetQ.Fleet.commandStruct);
           slotIds.push(...AMBITS.flatMap((a) => fleetQ.Fleet[a] ?? []).filter(Boolean));
         }
@@ -144,8 +182,8 @@ export class DesktopSource {
         building: q.structAttributes?.isBuilt !== true && num(q.structAttributes?.blockStartBuild) > 0,
       }));
 
-    const lastAction = num(playerQ.gridAttributes?.lastAction);
-    const alphaU = Object.values(playerQ.playerInventory ?? {})
+    const lastAction = num(playerQ?.gridAttributes?.lastAction);
+    const alphaU = Object.values(playerQ?.playerInventory ?? {})
       .filter((i) => i.denom === 'ualpha')
       .reduce((sum, i) => sum + num(i.amount), 0);
 
@@ -153,6 +191,7 @@ export class DesktopSource {
       source: 'desktop',
       fetchedAt: Date.now(),
       blockHeight: identity.blockHeight,
+      remoteView: !!targetPlanetId,
       planet: {
         id: planetQ.Planet.id,
         name: planetQ.Planet.name || planetQ.Planet.id,
@@ -166,17 +205,71 @@ export class DesktopSource {
           space: num(planetQ.Planet.spaceSlots),
         },
       },
-      player: {
-        id: identity.playerId,
-        name: playerQ.Player?.name ?? identity.playerId,
-        ore: num(playerQ.gridAttributes?.ore),
-        alphaU,
-        charge: lastAction > 0 ? Math.max(0, identity.blockHeight - lastAction) : 0,
-        capacity: num(playerQ.gridAttributes?.capacity),
-        load: num(playerQ.gridAttributes?.load),
-      },
+      player: playerQ
+        ? {
+            id: viewPlayerId,
+            name: playerQ.Player?.name || viewPlayerId,
+            ore: num(playerQ.gridAttributes?.ore),
+            alphaU,
+            charge: lastAction > 0 ? Math.max(0, identity.blockHeight - lastAction) : 0,
+            capacity: num(playerQ.gridAttributes?.capacity),
+            load: num(playerQ.gridAttributes?.load),
+          }
+        : null,
       structs,
+      ...(targetPlanetId
+        ? { note: `Viewing remote cell ${planetQ.Planet.name || planetQ.Planet.id} (${planetQ.Planet.id}) — VIEW CELL → home to return.` }
+        : {}),
     };
+  }
+
+  /**
+   * Resolve a VIEW CELL query — a planet id (2-…), a player id (1-…), or a
+   * player/planet name — to a concrete planet id, verifying it exists.
+   * Name search pages through the planet and player registries (bounded).
+   */
+  async resolveCellQuery(q: string): Promise<{ planetId: string; label: string }> {
+    const query = q.trim();
+    if (!query) throw new McpError('empty cell query');
+
+    if (/^2-\d+$/.test(query)) {
+      const p = await this.rawQuery<PlanetQueryResult>('planet', query);
+      if (!p.Planet?.id) throw new McpError(`planet ${query} not found`);
+      return { planetId: p.Planet.id, label: p.Planet.name || p.Planet.id };
+    }
+    if (/^1-\d+$/.test(query)) {
+      const p = await this.rawQuery<PlayerQueryResult>('player', query);
+      const planetId = p.Player?.planetId;
+      if (!planetId) throw new McpError(`player ${query} has no planet`);
+      return { planetId, label: p.Player.name || query };
+    }
+    if (/^\d+-\d+$/.test(query)) {
+      throw new McpError(`'${query}' is not a planet (2-…) or player (1-…) id`);
+    }
+
+    // Name search: exact (case-insensitive) wins, else first substring match.
+    const needle = query.toLowerCase();
+    let substring: { planetId: string; label: string } | null = null;
+    const MAX_PAGES = 12;
+    for (const type of ['planet', 'player'] as const) {
+      let key: string | undefined;
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const { items, next } = await this.rawList<RawPlanet | RawPlayer>(type, 400, key);
+        for (const it of items) {
+          const name = (it.name ?? '').toLowerCase();
+          if (!name || !name.includes(needle)) continue;
+          const planetId = type === 'planet' ? (it as RawPlanet).id : (it as RawPlayer).planetId;
+          if (!planetId) continue;
+          const hit = { planetId, label: it.name };
+          if (name === needle) return hit;
+          substring ??= hit;
+        }
+        if (!next) break;
+        key = next;
+      }
+    }
+    if (substring) return substring;
+    throw new McpError(`no planet or player named '${query}' found`);
   }
 
   /**

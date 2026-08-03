@@ -507,7 +507,7 @@ export class CellApp {
       if (this.refineSpawnAcc > 1) {
         this.refineSpawnAcc = 0;
         this.particles.spawnRefineFlow(
-          (s) => er.pathPoint(s),
+          (s) => (er.destroyed ? null : er.pathPoint(s)),
           (end) => this.particles.spawnAlphaSparks(end, 5),
         );
       }

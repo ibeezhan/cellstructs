@@ -31,6 +31,8 @@ export class DataManager {
   private busyEvents = false;
   private desktopWarned = false;
   private supportedActions: Promise<Set<string> | null> | null = null;
+  /** planet id being viewed through the portal; null = own planet */
+  private viewTarget: string | null = null;
 
   constructor(cfg: AppConfig, listener: DataListener) {
     this.desktop = new DesktopSource(cfg);
@@ -85,11 +87,36 @@ export class DataManager {
     await this.refreshEvents();
   }
 
+  isRemoteView(): boolean {
+    return this.viewTarget !== null;
+  }
+
+  /**
+   * VIEW CELL portal: resolve a cell id/name to a planet and switch the
+   * snapshot loop to it. Resolution errors (unknown id/name, mock mode)
+   * propagate to the caller for honest display.
+   */
+  async portalTo(query: string): Promise<{ planetId: string; label: string }> {
+    if (this.active !== 'desktop') {
+      throw new Error('desktop app (:8420) unreachable — the portal needs live chain data');
+    }
+    const target = await this.desktop.resolveCellQuery(query);
+    this.viewTarget = target.planetId;
+    await this.refreshSnapshot();
+    return target;
+  }
+
+  /** Return the view to the signed-in player's own planet. */
+  async portalHome(): Promise<void> {
+    this.viewTarget = null;
+    await this.refreshSnapshot();
+  }
+
   private async refreshSnapshot(): Promise<void> {
     if (this.busySnapshot) return;
     this.busySnapshot = true;
     try {
-      const snapshot = await this.desktop.fetchSnapshot();
+      const snapshot = await this.desktop.fetchSnapshot(this.viewTarget ?? undefined);
       if (this.active !== 'desktop') {
         this.eventCursor = 0; // fresh cursor when switching feeds
         console.info('cellstructs: desktop API back — switching to live data');

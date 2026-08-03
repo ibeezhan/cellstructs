@@ -19,8 +19,8 @@ interface Particle {
   color: number;
   /** homing target (ore intake) */
   target?: Vec;
-  /** parametric path (ER flow); s advances 0→1 */
-  path?: (s: number) => Vec;
+  /** parametric path (ER flow); s advances 0→1. null = source organelle gone */
+  path?: (s: number) => Vec | null;
   s?: number;
   speed?: number;
   onDone?: (p: Particle) => void;
@@ -68,7 +68,7 @@ export class ParticleSystem {
   }
 
   /** A particle flowing along the ER; emits an alpha spark when it arrives. */
-  spawnRefineFlow(path: (s: number) => Vec, onArrive?: (end: Vec) => void): void {
+  spawnRefineFlow(path: (s: number) => Vec | null, onArrive?: (end: Vec) => void): void {
     this.push({
       x: 0,
       y: 0,
@@ -103,6 +103,7 @@ export class ParticleSystem {
           done = true;
         }
         const pos = p.path(p.s);
+        if (!pos) continue; // path source destroyed (e.g. portal swap) — drop
         p.x = pos.x;
         p.y = pos.y;
       } else if (p.target) {

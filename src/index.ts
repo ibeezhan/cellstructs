@@ -6,6 +6,7 @@ import { DataManager } from './data/dataManager';
 import { CellApp } from './render/cellApp';
 import { DetailPanel } from './ui/detailPanel';
 import { Hud } from './ui/hud';
+import { PortalDialog } from './ui/portalDialog';
 import { SettingsPanel } from './ui/settingsPanel';
 import { Tooltip } from './ui/tooltip';
 
@@ -42,7 +43,9 @@ async function main(): Promise<void> {
         detail.refresh(snap);
       },
       onEvents: (events) => {
-        cellApp.pushEvents(events);
+        // Own-player events shouldn't animate someone else's cell while the
+        // portal is showing a remote planet; receipts always flow through.
+        if (!manager?.isRemoteView()) cellApp.pushEvents(events);
         pipeline.handleEvents(events);
       },
     });
@@ -53,16 +56,31 @@ async function main(): Promise<void> {
 
   new SettingsPanel((cfg) => start(cfg));
 
+  const portal = new PortalDialog(
+    async (query) => {
+      if (!manager) throw new Error('data layer not started yet');
+      const hit = await manager.portalTo(query);
+      cellApp.scanPulse();
+      return hit;
+    },
+    async () => {
+      if (!manager) throw new Error('data layer not started yet');
+      await manager.portalHome();
+    },
+    () => cellApp.viewCell(),
+  );
+
   document.getElementById('menu-scan')!.addEventListener('click', () => {
     cellApp.scanPulse();
     void manager?.refreshNow();
   });
-  document.getElementById('menu-view')!.addEventListener('click', () => cellApp.viewCell());
+  document.getElementById('menu-view')!.addEventListener('click', () => portal.toggle());
+  document.getElementById('menu-recenter')!.addEventListener('click', () => cellApp.viewCell());
 
   start();
 
   // dev/debug hook (used by the headless verification harness)
-  (window as unknown as { cellstructs: object }).cellstructs = { cellApp, detail, pipeline };
+  (window as unknown as { cellstructs: object }).cellstructs = { cellApp, detail, pipeline, portal };
 }
 
 void main();

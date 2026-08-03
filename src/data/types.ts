@@ -145,6 +145,8 @@ export interface CellSnapshot {
   source: SourceKind;
   fetchedAt: number;
   blockHeight: number;
+  /** true when this is another player's planet via the VIEW CELL portal */
+  remoteView?: boolean;
   planet: {
     id: string;
     name: string;
