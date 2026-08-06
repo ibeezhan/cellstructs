@@ -1,6 +1,10 @@
 # cellstructs 🧬
 
-A living-cell **lens over [Structs](https://structs.gg)** — your on-chain empire rendered as biology. Planets become cells, structs become organelles, and the whole thing breathes: mining, refining, charging, raiding, and defending shown as realistic animated cellular behaviour.
+A living-cell **lens over [Structs](https://playstructs.com/)** — your on-chain empire rendered as biology. Planets become cells, structs become organelles, and the whole thing breathes: mining, refining, charging, raiding, and defending shown as realistic animated cellular behaviour.
+
+Live demo (read only): [cellstructs.pages.dev](https://cellstructs.pages.dev/)
+
+https://github.com/user-attachments/assets/b30a9c7a-5bcb-46e4-a817-8e3c007c45fd
 
 Primarily a **skin / visualization layer** that reads live Structs chain state (read-only) and renders it beautifully. Actions are routed back through the existing Structs signing surface. Over time we may propose protocol-side changes where the cell model wants something the chain doesn't yet expose.
 
